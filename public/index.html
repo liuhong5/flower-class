@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云端花园管理系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-seedling"></i>
+                <h1>云端花园管理系统</h1>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="用户名" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="密码" required>
+                </div>
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    登录
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="mainContainer" class="main-container" style="display: none;">
+        <!-- 顶部导航 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <i class="fas fa-seedling"></i>
+                <span>云端花园</span>
+            </div>
+            <div class="nav-user">
+                <span id="userInfo"></span>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    退出
+                </button>
+            </div>
+        </nav>
+
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-menu">
+                <div class="menu-item active" data-tab="classes">
+                    <i class="fas fa-school"></i>
+                    <span>班级管理</span>
+                </div>
+                <div class="menu-item" data-tab="flowers">
+                    <i class="fas fa-flower"></i>
+                    <span>花朵管理</span>
+                </div>
+                <div class="menu-item" data-tab="gardens">
+                    <i class="fas fa-leaf"></i>
+                    <span>花田管理</span>
+                </div>
+                <div class="menu-item" data-tab="rankings">
+                    <i class="fas fa-trophy"></i>
+                    <span>排行榜</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 班级管理 -->
+            <div id="classesTab" class="tab-content active">
+                <div class="content-header">
+                    <h2><i class="fas fa-school"></i> 班级管理</h2>
+                    <button id="addClassBtn" class="add-btn editor-only">
+                        <i class="fas fa-plus"></i>
+                        添加班级
+                    </button>
+                </div>
+                <div class="class-tip">
+                    <i class="fas fa-info-circle"></i>
+                    <span>点击班级卡片或“进入”按钮可以查看该班级的花朵、花田和排行榜</span>
+                </div>
+                <div id="classesList" class="cards-grid"></div>
+            </div>
+
+            <!-- 花朵管理 -->
+            <div id="flowersTab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-flower"></i> 花朵管理</h2>
+                    <div class="header-controls">
+                        <select id="classSelect" class="class-select">
+                            <option value="">选择班级</option>
+                        </select>
+                        <button id="addFlowerBtn" class="add-btn editor-only">
+                            <i class="fas fa-plus"></i>
+                            添加花朵
+                        </button>
+                    </div>
+                </div>
+                <div id="flowersList" class="cards-grid"></div>
+            </div>
+
+            <!-- 花田管理 -->
+            <div id="gardensTab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-leaf"></i> 花田管理</h2>
+                    <div class="header-controls">
+                        <select id="gardenClassSelect" class="class-select">
+                            <option value="">选择班级</option>
+                        </select>
+                        <button id="addGardenBtn" class="add-btn editor-only">
+                            <i class="fas fa-plus"></i>
+                            添加花田
+                        </button>
+                    </div>
+                </div>
+                <div id="gardensList" class="cards-grid"></div>
+                
+                <!-- 花田详情模态框 -->
+                <div id="gardenDetailModal" class="modal">
+                    <div class="modal-content garden-detail">
+                        <span class="close" onclick="app.closeGardenDetail()">&times;</span>
+                        <div id="gardenDetailBody"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 排行榜 -->
+            <div id="rankingsTab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-trophy"></i> 排行榜</h2>
+                    <div class="header-controls">
+                        <select id="rankingClassSelect" class="class-select">
+                            <option value="">选择班级查看排行榜</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="rankingsContent" class="rankings-container" style="display: none;">
+                    <div class="ranking-section">
+                        <h3><i class="fas fa-flower"></i> 花朵排行榜</h3>
+                        <div id="flowerRankings" class="ranking-list"></div>
+                    </div>
+                    <div class="ranking-section">
+                        <h3><i class="fas fa-leaf"></i> 花田排行榜</h3>
+                        <div id="gardenRankings" class="ranking-list"></div>
+                    </div>
+                </div>
+                <div id="noClassSelected" class="no-selection">
+                    <i class="fas fa-info-circle"></i>
+                    <p>请选择一个班级来查看该班级的排行榜</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 模态框 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- 浇水动画 -->
+    <div id="waterAnimation" class="water-animation">
+        <div class="water-drop">💧</div>
+        <div class="growth-effect">🌱</div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
