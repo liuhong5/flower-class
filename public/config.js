@@ -7,8 +7,8 @@ const API_CONFIG = {
     },
     // 生产环境 - Vercel域名
     production: {
-        baseURL: 'https://flower-class-mf5xu47vm-hong-lius-projects-c1a73057.vercel.app',
-        socketURL: 'https://flower-class-mf5xu47vm-hong-lius-projects-c1a73057.vercel.app'
+        baseURL: 'https://flower-class-lilac.vercel.app',
+        socketURL: 'https://flower-class-lilac.vercel.app'
     }
 };
 
