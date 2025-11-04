@@ -5,10 +5,10 @@ const API_CONFIG = {
         baseURL: 'http://localhost:3000',
         socketURL: 'http://localhost:3000'
     },
-    // 生产环境 - Vercel域名
+    // 生产环境 - Render域名
     production: {
-        baseURL: 'https://flower-class-lilac.vercel.app',
-        socketURL: 'https://flower-class-lilac.vercel.app'
+        baseURL: 'https://flower-class.onrender.com',
+        socketURL: 'https://flower-class.onrender.com'
     }
 };
 
