@@ -6,6 +6,8 @@
     <title>云端花园管理系统</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
 </head>
 <body>
     <!-- 登录界面 -->
@@ -187,11 +189,31 @@
                         </select>
                     </div>
                 </div>
-                <div id="chartContainer" class="chart-container" style="display: none;">
-                    <div class="chart-header">
-                        <h3 class="chart-title">数据统计图表</h3>
+                <div class="stats-overview">
+                    <div id="realTimeStats" class="real-time-stats"></div>
+                    <div class="chart-controls">
+                        <button onclick="app.loadAdvancedCharts()" class="chart-btn">📊 加载图表</button>
+                        <button onclick="app.printRankings()" class="print-btn">🖨️ 打印</button>
+                        <button onclick="app.toggleFullscreen()" class="fullscreen-btn">🔍 全屏</button>
                     </div>
-                    <canvas id="statsChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h4>柱状图</h4>
+                        <canvas id="statsChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>饼图</h4>
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>雷达图</h4>
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4>趋势图</h4>
+                        <canvas id="trendChart"></canvas>
+                    </div>
                 </div>
                 <div id="rankingsContent" class="rankings-container" style="display: none;">
                     <div class="ranking-section">
@@ -234,5 +256,15 @@
     <script src="config.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
+    <script>
+        // 初始化PWA和高级功能
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.app) {
+                app.initPWA();
+                app.initNotificationSystem();
+                app.initOfflineSupport();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -15,6 +15,8 @@ class GardenApp {
         this.allGardens = [];
         this.filteredFlowers = [];
         this.filteredGardens = [];
+        this.searchDebounceTimer = null;
+        this.isFullscreen = false;
         
         this.init();
     }
@@ -58,13 +60,18 @@ class GardenApp {
             this.exportData();
         });
 
-        // 搜索功能
+        // 防抖搜索功能
         document.getElementById('flowerSearch').addEventListener('input', (e) => {
-            this.searchFlowers(e.target.value);
+            this.debounceSearch(() => this.searchFlowers(e.target.value));
         });
 
         document.getElementById('gardenSearch').addEventListener('input', (e) => {
-            this.searchGardens(e.target.value);
+            this.debounceSearch(() => this.searchGardens(e.target.value));
+        });
+
+        // 快捷键支持
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyboardShortcuts(e);
         });
 
         // 侧边栏导航
@@ -123,6 +130,9 @@ class GardenApp {
 
         // 初始化主题
         this.initTheme();
+        
+        // 初始化虚拟滚动
+        this.initVirtualScroll();
     }
 
     setupSocketListeners() {
@@ -1366,3 +1376,632 @@ class GardenApp {
 
 // 初始化应用
 const app = new GardenApp();
+    // 防抖搜索
+    debounceSearch(callback) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = setTimeout(callback, 300);
+    }
+
+    // 快捷键处理
+    handleKeyboardShortcuts(e) {
+        // ESC关闭弹窗
+        if (e.key === 'Escape') {
+            this.closeModal();
+            this.closeGardenDetail();
+            if (this.isFullscreen) {
+                this.exitFullscreen();
+            }
+        }
+        
+        // Ctrl+S保存（阻止浏览器默认保存）
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            this.exportData();
+        }
+        
+        // F11全屏排行榜
+        if (e.key === 'F11' && document.querySelector('#rankingsTab.active')) {
+            e.preventDefault();
+            this.toggleFullscreen();
+        }
+    }
+
+    // 虚拟滚动初始化
+    initVirtualScroll() {
+        this.virtualScrollConfig = {
+            itemHeight: 200, // 卡片高度
+            containerHeight: 600, // 容器高度
+            buffer: 5 // 缓冲区项目数
+        };
+    }
+
+    // 虚拟滚动渲染
+    renderVirtualList(container, items, createItemFn) {
+        if (items.length < 50) {
+            // 少于50项时使用普通渲染
+            container.innerHTML = '';
+            items.forEach((item, index) => {
+                const element = createItemFn(item);
+                element.style.animationDelay = `${index * 0.05}s`;
+                container.appendChild(element);
+            });
+            return;
+        }
+
+        // 大数据量使用虚拟滚动
+        const { itemHeight, containerHeight, buffer } = this.virtualScrollConfig;
+        const visibleCount = Math.ceil(containerHeight / itemHeight);
+        const totalHeight = items.length * itemHeight;
+
+        container.style.height = `${containerHeight}px`;
+        container.style.overflow = 'auto';
+        container.innerHTML = `<div style="height: ${totalHeight}px; position: relative;"></div>`;
+        
+        const viewport = container.firstChild;
+        let startIndex = 0;
+
+        const renderVisibleItems = () => {
+            const scrollTop = container.scrollTop;
+            startIndex = Math.floor(scrollTop / itemHeight);
+            const endIndex = Math.min(startIndex + visibleCount + buffer, items.length);
+            
+            viewport.innerHTML = '';
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                const item = items[i];
+                const element = createItemFn(item);
+                element.style.position = 'absolute';
+                element.style.top = `${i * itemHeight}px`;
+                element.style.width = '100%';
+                viewport.appendChild(element);
+            }
+        };
+
+        container.addEventListener('scroll', () => {
+            requestAnimationFrame(renderVisibleItems);
+        });
+
+        renderVisibleItems();
+    }
+
+    // 图片懒加载
+    lazyLoadImage(img, src) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const image = entry.target;
+                    image.src = src;
+                    image.classList.remove('lazy');
+                    observer.unobserve(image);
+                }
+            });
+        });
+        
+        img.classList.add('lazy');
+        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5sb2FkaW5nLi4uPC90ZXh0Pjwvc3ZnPg==';
+        observer.observe(img);
+    }
+
+    // 全屏功能
+    toggleFullscreen() {
+        const rankingsTab = document.getElementById('rankingsTab');
+        if (!this.isFullscreen) {
+            rankingsTab.classList.add('fullscreen');
+            this.isFullscreen = true;
+            this.showNotification('按ESC或F11退出全屏');
+        } else {
+            this.exitFullscreen();
+        }
+    }
+
+    exitFullscreen() {
+        const rankingsTab = document.getElementById('rankingsTab');
+        rankingsTab.classList.remove('fullscreen');
+        this.isFullscreen = false;
+    }
+
+    // 打印功能
+    printRankings() {
+        const printContent = document.getElementById('rankingsContent').cloneNode(true);
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>花园排行榜</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .rankings-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+                        .ranking-section { break-inside: avoid; }
+                        .ranking-section h3 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+                        .ranking-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+                        .ranking-position { font-weight: bold; color: #4CAF50; }
+                        .ranking-name { flex: 1; margin-left: 15px; }
+                        .ranking-score { font-weight: bold; }
+                        @media print { .rankings-container { grid-template-columns: 1fr; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>🌸 云端花园排行榜</h1>
+                    <p>打印时间: ${new Date().toLocaleString()}</p>
+                    ${printContent.outerHTML}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+    // 多种图表类型
+    async loadAdvancedCharts() {
+        if (!this.currentRankingClass || typeof Chart === 'undefined') return;
+        
+        try {
+            const [flowersRes, gardensRes] = await Promise.all([
+                fetch(`/api/flowers?classId=${this.currentRankingClass}`),
+                fetch(`/api/gardens?classId=${this.currentRankingClass}`)
+            ]);
+            
+            const flowersData = await flowersRes.json();
+            const gardensData = await gardensRes.json();
+            
+            const flowers = flowersData.data || flowersData;
+            const gardens = gardensData.data || gardensData;
+            
+            // 饼图 - 分数分布
+            this.createPieChart(flowers, gardens);
+            
+            // 雷达图 - 综合评估
+            this.createRadarChart(flowers, gardens);
+            
+            // 趋势图 - 分数趋势
+            this.createTrendChart();
+            
+            // 实时统计
+            this.updateRealTimeStats(flowers, gardens);
+            
+        } catch (error) {
+            console.error('加载高级图表失败:', error);
+        }
+    }
+
+    createPieChart(flowers, gardens) {
+        const pieCtx = document.getElementById('pieChart')?.getContext('2d');
+        if (!pieCtx) return;
+        
+        const scoreRanges = {
+            '0-5分': 0, '6-10分': 0, '11-15分': 0, '16-20分': 0, '20分以上': 0
+        };
+        
+        [...flowers, ...gardens].forEach(item => {
+            if (item.score <= 5) scoreRanges['0-5分']++;
+            else if (item.score <= 10) scoreRanges['6-10分']++;
+            else if (item.score <= 15) scoreRanges['11-15分']++;
+            else if (item.score <= 20) scoreRanges['16-20分']++;
+            else scoreRanges['20分以上']++;
+        });
+        
+        new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(scoreRanges),
+                datasets: [{
+                    data: Object.values(scoreRanges),
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    createRadarChart(flowers, gardens) {
+        const radarCtx = document.getElementById('radarChart')?.getContext('2d');
+        if (!radarCtx) return;
+        
+        const avgFlowerScore = flowers.reduce((sum, f) => sum + f.score, 0) / flowers.length || 0;
+        const avgGardenScore = gardens.reduce((sum, g) => sum + g.score, 0) / gardens.length || 0;
+        const maxScore = Math.max(...flowers.map(f => f.score), ...gardens.map(g => g.score));
+        
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['平均分', '最高分', '参与度', '活跃度', '成长性'],
+                datasets: [{
+                    label: '班级表现',
+                    data: [avgFlowerScore, maxScore, flowers.length, gardens.length, avgFlowerScore * 0.8],
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    async createTrendChart() {
+        const trendCtx = document.getElementById('trendChart')?.getContext('2d');
+        if (!trendCtx) return;
+        
+        // 模拟趋势数据（实际应从服务器获取历史数据）
+        const dates = [];
+        const scores = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            dates.push(date.toLocaleDateString());
+            scores.push(Math.floor(Math.random() * 50) + 50);
+        }
+        
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: '总分趋势',
+                    data: scores,
+                    borderColor: 'rgba(33, 150, 243, 1)',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    updateRealTimeStats(flowers, gardens) {
+        const statsContainer = document.getElementById('realTimeStats');
+        if (!statsContainer) return;
+        
+        const totalFlowers = flowers.length;
+        const totalGardens = gardens.length;
+        const totalScore = [...flowers, ...gardens].reduce((sum, item) => sum + item.score, 0);
+        const avgScore = totalScore / (totalFlowers + totalGardens) || 0;
+        const topScore = Math.max(...flowers.map(f => f.score), ...gardens.map(g => g.score));
+        
+        statsContainer.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-number">${totalFlowers}</div>
+                <div class="stat-label">花朵总数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${totalGardens}</div>
+                <div class="stat-label">花田总数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${totalScore}</div>
+                <div class="stat-label">总分数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${avgScore.toFixed(1)}</div>
+                <div class="stat-label">平均分</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${topScore}</div>
+                <div class="stat-label">最高分</div>
+            </div>
+        `;
+    }
+    // 评论系统
+    async showCommentsModal(type, id) {
+        try {
+            const response = await fetch(`/api/${type}/${id}/comments`);
+            const comments = await response.json();
+            
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <h3>💬 评论</h3>
+                <div class="comments-list">
+                    ${comments.map(comment => `
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <strong>${comment.author}</strong>
+                                <span class="comment-time">${new Date(comment.created_at).toLocaleString()}</span>
+                            </div>
+                            <div class="comment-content">${comment.content}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                ${this.userRole === 'editor' ? `
+                    <form class="comment-form" onsubmit="app.addComment(event, '${type}', ${id})">
+                        <textarea id="commentContent" placeholder="添加评论..." required></textarea>
+                        <button type="submit">发表评论</button>
+                    </form>
+                ` : ''}
+            `;
+            document.getElementById('modal').style.display = 'block';
+        } catch (error) {
+            console.error('加载评论失败:', error);
+        }
+    }
+
+    async addComment(event, type, id) {
+        event.preventDefault();
+        const content = document.getElementById('commentContent').value;
+        
+        try {
+            const response = await fetch(`/api/${type}/${id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ content })
+            });
+            
+            if (response.ok) {
+                this.showCommentsModal(type, id);
+            }
+        } catch (error) {
+            alert('添加评论失败');
+        }
+    }
+
+    // 标签系统
+    async showTagsModal(flowerId) {
+        try {
+            const [tagsRes, flowerTagsRes] = await Promise.all([
+                fetch('/api/tags'),
+                fetch(`/api/flowers/${flowerId}/tags`)
+            ]);
+            
+            const allTags = await tagsRes.json();
+            const flowerTags = await flowerTagsRes.json();
+            
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <h3>🏷️ 标签管理</h3>
+                <div class="current-tags">
+                    <h4>当前标签:</h4>
+                    <div class="tags-container">
+                        ${flowerTags.map(tag => `
+                            <span class="tag tag-${tag.color}">
+                                ${tag.name}
+                                ${this.userRole === 'editor' ? `
+                                    <button onclick="app.removeTag(${flowerId}, ${tag.id})" class="tag-remove">×</button>
+                                ` : ''}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+                ${this.userRole === 'editor' ? `
+                    <div class="available-tags">
+                        <h4>可用标签:</h4>
+                        <div class="tags-container">
+                            ${allTags.filter(tag => !flowerTags.some(ft => ft.id === tag.id)).map(tag => `
+                                <span class="tag tag-${tag.color}" onclick="app.addTag(${flowerId}, ${tag.id})">
+                                    ${tag.name} +
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <form class="tag-form" onsubmit="app.createTag(event, ${flowerId})">
+                        <input type="text" id="tagName" placeholder="新标签名称" required>
+                        <select id="tagColor">
+                            <option value="blue">蓝色</option>
+                            <option value="green">绿色</option>
+                            <option value="red">红色</option>
+                            <option value="yellow">黄色</option>
+                            <option value="purple">紫色</option>
+                        </select>
+                        <button type="submit">创建标签</button>
+                    </form>
+                ` : ''}
+            `;
+            document.getElementById('modal').style.display = 'block';
+        } catch (error) {
+            console.error('加载标签失败:', error);
+        }
+    }
+
+    async addTag(flowerId, tagId) {
+        try {
+            const response = await fetch(`/api/flowers/${flowerId}/tags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ tagId })
+            });
+            
+            if (response.ok) {
+                this.showTagsModal(flowerId);
+            }
+        } catch (error) {
+            alert('添加标签失败');
+        }
+    }
+
+    async removeTag(flowerId, tagId) {
+        try {
+            const response = await fetch(`/api/flowers/${flowerId}/tags/${tagId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            
+            if (response.ok) {
+                this.showTagsModal(flowerId);
+            }
+        } catch (error) {
+            alert('移除标签失败');
+        }
+    }
+
+    async createTag(event, flowerId) {
+        event.preventDefault();
+        const name = document.getElementById('tagName').value;
+        const color = document.getElementById('tagColor').value;
+        
+        try {
+            const response = await fetch('/api/tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ name, color })
+            });
+            
+            if (response.ok) {
+                this.showTagsModal(flowerId);
+            }
+        } catch (error) {
+            alert('创建标签失败');
+        }
+    }
+    // 成就系统
+    checkAchievements(type, data) {
+        const achievements = [
+            { id: 'first_flower', name: '第一朵花', condition: (type, data) => type === 'flower' && data.score === 1 },
+            { id: 'score_10', name: '十分达成', condition: (type, data) => data.score === 10 },
+            { id: 'score_20', name: '二十分达成', condition: (type, data) => data.score === 20 },
+            { id: 'daily_water', name: '每日浇水', condition: (type, data) => type === 'water' },
+            { id: 'garden_master', name: '花田大师', condition: (type, data) => type === 'garden' && data.score >= 50 }
+        ];
+        
+        achievements.forEach(achievement => {
+            if (achievement.condition(type, data)) {
+                this.unlockAchievement(achievement);
+            }
+        });
+    }
+
+    unlockAchievement(achievement) {
+        // 检查是否已解锁
+        const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
+        if (unlockedAchievements.includes(achievement.id)) return;
+        
+        // 解锁成就
+        unlockedAchievements.push(achievement.id);
+        localStorage.setItem('achievements', JSON.stringify(unlockedAchievements));
+        
+        // 显示成就通知
+        this.showAchievementNotification(achievement);
+    }
+
+    showAchievementNotification(achievement) {
+        const notification = document.createElement('div');
+        notification.className = 'achievement-notification';
+        notification.innerHTML = `
+            <div class="achievement-icon">🏆</div>
+            <div class="achievement-content">
+                <div class="achievement-title">成就解锁！</div>
+                <div class="achievement-name">${achievement.name}</div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+
+    // 通知系统
+    initNotificationSystem() {
+        // 请求通知权限
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        
+        // 监听重要事件
+        this.socket.on('importantUpdate', (data) => {
+            this.showSystemNotification(data.title, data.message);
+        });
+    }
+
+    showSystemNotification(title, message) {
+        // 浏览器通知
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, {
+                body: message,
+                icon: '/favicon.ico',
+                tag: 'garden-notification'
+            });
+        }
+        
+        // 页面内通知
+        this.showNotification(`${title}: ${message}`);
+    }
+
+    // PWA支持
+    initPWA() {
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('SW registered: ', registration);
+                })
+                .catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+        }
+        
+        // 添加到主屏幕提示
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            this.showInstallPrompt();
+        });
+    }
+
+    showInstallPrompt() {
+        const installBanner = document.createElement('div');
+        installBanner.className = 'install-banner';
+        installBanner.innerHTML = `
+            <div class="install-content">
+                <span>📱 将花园管理系统添加到主屏幕</span>
+                <button id="installBtn" class="install-btn">安装</button>
+                <button id="dismissBtn" class="dismiss-btn">×</button>
+            </div>
+        `;
+        
+        document.body.appendChild(installBanner);
+        
+        document.getElementById('installBtn').addEventListener('click', () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    deferredPrompt = null;
+                    document.body.removeChild(installBanner);
+                });
+            }
+        });
+        
+        document.getElementById('dismissBtn').addEventListener('click', () => {
+            document.body.removeChild(installBanner);
+        });
+    }
+
+    // 离线功能
+    initOfflineSupport() {
+        // 缓存关键数据
+        window.addEventListener('online', () => {
+            this.showNotification('网络已连接');
+            this.syncOfflineData();
+        });
+        
+        window.addEventListener('offline', () => {
+            this.showNotification('网络已断开，进入离线模式');
+        });
+    }
+
+    syncOfflineData() {
+        const offlineActions = JSON.parse(localStorage.getItem('offlineActions') || '[]');
+        
+        offlineActions.forEach(async (action) => {
+            try {
+                await fetch(action.url, action.options);
+            } catch (error) {
+                console.error('同步离线数据失败:', error);
+            }
+        });
+        
+        localStorage.removeItem('offlineActions');
+    }
