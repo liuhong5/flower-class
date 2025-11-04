@@ -20,7 +20,7 @@ const supabaseUrl = 'https://zxwweootybxjcdyqfpms.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4d3dlb290eWJ4amNkeXFmcG1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxODAxMjcsImV4cCI6MjA3Nzc1NjEyN30.q8x1Smz7USlrHuyxMIxZwlssXKntoaKOc-1PLh3jeH4';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 app.use(cors());
 app.use(express.json());

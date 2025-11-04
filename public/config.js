@@ -5,10 +5,10 @@ const API_CONFIG = {
         baseURL: 'http://localhost:3000',
         socketURL: 'http://localhost:3000'
     },
-    // 生产环境 - 替换为您的Railway域名
+    // 生产环境 - Railway域名
     production: {
-        baseURL: 'https://your-app-name.up.railway.app',
-        socketURL: 'https://your-app-name.up.railway.app'
+        baseURL: 'https://serene-caring-production.up.railway.app',
+        socketURL: 'https://serene-caring-production.up.railway.app'
     }
 };
 
