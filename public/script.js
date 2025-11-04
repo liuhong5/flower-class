@@ -1372,10 +1372,6 @@ class GardenApp {
             console.error('加载图表失败:', error);
         }
     }
-}
-
-// 初始化应用
-const app = new GardenApp();
     // 防抖搜索
     debounceSearch(callback) {
         clearTimeout(this.searchDebounceTimer);
@@ -2005,3 +2001,7 @@ const app = new GardenApp();
         
         localStorage.removeItem('offlineActions');
     }
+}
+
+// 初始化应用
+const app = new GardenApp();
