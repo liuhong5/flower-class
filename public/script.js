@@ -1236,6 +1236,11 @@ class GardenApp {
 
     // 数据导出功能
     async exportData() {
+        if (typeof XLSX === 'undefined') {
+            alert('导出功能加载中，请稍后再试');
+            return;
+        }
+        
         try {
             const [flowersRes, gardensRes, classesRes] = await Promise.all([
                 fetch('/api/flowers'),
@@ -1250,7 +1255,7 @@ class GardenApp {
             const wb = XLSX.utils.book_new();
             
             // 花朵数据
-            const flowerData = flowers.map(f => ({
+            const flowerData = (flowers.data || flowers).map(f => ({
                 '花朵名称': f.name,
                 '班级ID': f.class_id,
                 '分数': f.score,
@@ -1260,7 +1265,7 @@ class GardenApp {
             XLSX.utils.book_append_sheet(wb, flowerWs, '花朵数据');
             
             // 花田数据
-            const gardenData = gardens.map(g => ({
+            const gardenData = (gardens.data || gardens).map(g => ({
                 '花田名称': g.name,
                 '班级ID': g.class_id,
                 '分数': g.score,
@@ -1280,13 +1285,14 @@ class GardenApp {
             XLSX.writeFile(wb, `花园数据_${new Date().toISOString().split('T')[0]}.xlsx`);
             this.showNotification('数据导出成功');
         } catch (error) {
-            alert('导出失败');
+            console.error('导出错误:', error);
+            alert('导出失败: ' + error.message);
         }
     }
 
     // 统计图表
     async loadStatsChart() {
-        if (!this.currentRankingClass) return;
+        if (!this.currentRankingClass || typeof Chart === 'undefined') return;
         
         try {
             const [flowersRes, gardensRes] = await Promise.all([
@@ -1294,10 +1300,14 @@ class GardenApp {
                 fetch(`/api/gardens?classId=${this.currentRankingClass}`)
             ]);
             
-            const flowers = await flowersRes.json();
-            const gardens = await gardensRes.json();
+            const flowersData = await flowersRes.json();
+            const gardensData = await gardensRes.json();
             
-            const ctx = document.getElementById('statsChart').getContext('2d');
+            const flowers = flowersData.data || flowersData;
+            const gardens = gardensData.data || gardensData;
+            
+            const ctx = document.getElementById('statsChart')?.getContext('2d');
+            if (!ctx) return;
             
             if (this.chart) {
                 this.chart.destroy();
@@ -1337,7 +1347,10 @@ class GardenApp {
                 }
             });
             
-            document.getElementById('chartContainer').style.display = 'block';
+            const chartContainer = document.getElementById('chartContainer');
+            if (chartContainer) {
+                chartContainer.style.display = 'block';
+            }
         } catch (error) {
             console.error('加载图表失败:', error);
         }
