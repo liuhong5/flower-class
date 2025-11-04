@@ -41,6 +41,16 @@
                 <span>云端花园</span>
             </div>
             <div class="nav-user">
+                <button id="mobileMenuBtn" class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <button id="themeToggle" class="theme-toggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="exportBtn" class="export-btn">
+                    <i class="fas fa-download"></i>
+                    导出
+                </button>
                 <span id="userInfo"></span>
                 <button id="logoutBtn" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i>
@@ -103,7 +113,25 @@
                         </button>
                     </div>
                 </div>
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="flowerSearch" class="search-box" placeholder="搜索花朵名称...">
+                </div>
+                <div id="flowerBatchToolbar" class="batch-toolbar">
+                    <div class="batch-info">
+                        已选择 <span id="selectedFlowerCount">0</span> 朵花
+                    </div>
+                    <div class="batch-actions">
+                        <button class="batch-btn batch-water" onclick="app.batchWaterFlowers()">
+                            <i class="fas fa-tint"></i> 批量浇水
+                        </button>
+                        <button class="batch-btn batch-cancel" onclick="app.cancelBatchSelection()">
+                            <i class="fas fa-times"></i> 取消选择
+                        </button>
+                    </div>
+                </div>
                 <div id="flowersList" class="cards-grid"></div>
+                <div id="flowerPagination" class="pagination"></div>
             </div>
 
             <!-- 花田管理 -->
@@ -120,7 +148,25 @@
                         </button>
                     </div>
                 </div>
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="gardenSearch" class="search-box" placeholder="搜索花田名称...">
+                </div>
+                <div id="gardenBatchToolbar" class="batch-toolbar">
+                    <div class="batch-info">
+                        已选择 <span id="selectedGardenCount">0</span> 个花田
+                    </div>
+                    <div class="batch-actions">
+                        <button class="batch-btn batch-score" onclick="app.showBatchScoreModal()">
+                            <i class="fas fa-plus"></i> 批量加分
+                        </button>
+                        <button class="batch-btn batch-cancel" onclick="app.cancelBatchSelection()">
+                            <i class="fas fa-times"></i> 取消选择
+                        </button>
+                    </div>
+                </div>
                 <div id="gardensList" class="cards-grid"></div>
+                <div id="gardenPagination" class="pagination"></div>
                 
                 <!-- 花田详情模态框 -->
                 <div id="gardenDetailModal" class="modal">
@@ -141,6 +187,12 @@
                         </select>
                     </div>
                 </div>
+                <div id="chartContainer" class="chart-container" style="display: none;">
+                    <div class="chart-header">
+                        <h3 class="chart-title">数据统计图表</h3>
+                    </div>
+                    <canvas id="statsChart" class="chart-canvas"></canvas>
+                </div>
                 <div id="rankingsContent" class="rankings-container" style="display: none;">
                     <div class="ranking-section">
                         <h3><i class="fas fa-flower"></i> 花朵排行榜</h3>
@@ -150,6 +202,10 @@
                         <h3><i class="fas fa-leaf"></i> 花田排行榜</h3>
                         <div id="gardenRankings" class="ranking-list"></div>
                     </div>
+                </div>
+                <div id="historyContainer" class="history-container" style="display: none;">
+                    <h3>操作历史记录</h3>
+                    <div id="historyList"></div>
                 </div>
                 <div id="noClassSelected" class="no-selection">
                     <i class="fas fa-info-circle"></i>
@@ -178,3 +234,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+    <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>
+    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js\"></script>

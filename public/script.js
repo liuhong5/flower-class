@@ -7,6 +7,14 @@ class GardenApp {
         this.username = localStorage.getItem('username');
         this.currentClass = null;
         this.currentRankingClass = null;
+        this.selectedFlowers = new Set();
+        this.selectedGardens = new Set();
+        this.currentPage = 1;
+        this.itemsPerPage = 12;
+        this.allFlowers = [];
+        this.allGardens = [];
+        this.filteredFlowers = [];
+        this.filteredGardens = [];
         
         this.init();
     }
@@ -33,6 +41,30 @@ class GardenApp {
         // 退出登录
         document.getElementById('logoutBtn').addEventListener('click', () => {
             this.logout();
+        });
+
+        // 主题切换
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            this.toggleTheme();
+        });
+
+        // 移动端菜单
+        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+            this.toggleMobileMenu();
+        });
+
+        // 导出功能
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            this.exportData();
+        });
+
+        // 搜索功能
+        document.getElementById('flowerSearch').addEventListener('input', (e) => {
+            this.searchFlowers(e.target.value);
+        });
+
+        document.getElementById('gardenSearch').addEventListener('input', (e) => {
+            this.searchGardens(e.target.value);
         });
 
         // 侧边栏导航
@@ -88,6 +120,9 @@ class GardenApp {
                 this.closeModal();
             }
         });
+
+        // 初始化主题
+        this.initTheme();
     }
 
     setupSocketListeners() {
@@ -301,15 +336,10 @@ class GardenApp {
         try {
             const url = this.currentClass ? `/api/flowers?classId=${this.currentClass}` : '/api/flowers';
             const response = await fetch(url);
-            const flowers = await response.json();
+            this.allFlowers = await response.json();
+            this.filteredFlowers = [...this.allFlowers];
             
-            const container = document.getElementById('flowersList');
-            container.innerHTML = '';
-
-            flowers.forEach(flower => {
-                const card = this.createFlowerCard(flower);
-                container.appendChild(card);
-            });
+            this.renderFlowers();
         } catch (error) {
             console.error('加载花朵失败:', error);
         }
@@ -319,15 +349,10 @@ class GardenApp {
         try {
             const url = this.currentClass ? `/api/gardens?classId=${this.currentClass}` : '/api/gardens';
             const response = await fetch(url);
-            const gardens = await response.json();
+            this.allGardens = await response.json();
+            this.filteredGardens = [...this.allGardens];
             
-            const container = document.getElementById('gardensList');
-            container.innerHTML = '';
-
-            gardens.forEach(garden => {
-                const card = this.createGardenCard(garden);
-                container.appendChild(card);
-            });
+            this.renderGardens();
         } catch (error) {
             console.error('加载花田失败:', error);
         }
@@ -408,6 +433,9 @@ class GardenApp {
         const flowerIcon = this.getFlowerIcon(flower.score);
         
         card.innerHTML = `
+            ${this.userRole === 'editor' ? `
+                <input type="checkbox" class="card-checkbox" onchange="app.toggleFlowerSelection(${flower.id}, this)">
+            ` : ''}
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-flower"></i>
@@ -428,6 +456,14 @@ class GardenApp {
             <div class="card-score">${flower.score} 分</div>
         `;
         
+        // 添加选择事件
+        const checkbox = card.querySelector('.card-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                card.classList.toggle('selected', checkbox.checked);
+            });
+        }
+        
         return card;
     }
 
@@ -436,6 +472,9 @@ class GardenApp {
         card.className = 'card';
         
         card.innerHTML = `
+            ${this.userRole === 'editor' ? `
+                <input type="checkbox" class="card-checkbox" onchange="app.toggleGardenSelection(${garden.id}, this)">
+            ` : ''}
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-leaf"></i>
@@ -458,6 +497,14 @@ class GardenApp {
             <div class="flower-visual">🌿</div>
             <div class="card-score">${garden.score} 分</div>
         `;
+        
+        // 添加选择事件
+        const checkbox = card.querySelector('.card-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                card.classList.toggle('selected', checkbox.checked);
+            });
+        }
         
         return card;
     }
@@ -966,6 +1013,334 @@ class GardenApp {
         setTimeout(() => {
             animation.classList.remove('active');
         }, 2000);
+    }
+    // 主题切换功能
+    initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        this.updateThemeIcon(savedTheme);
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        this.updateThemeIcon(newTheme);
+    }
+
+    updateThemeIcon(theme) {
+        const icon = document.querySelector('#themeToggle i');
+        icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    // 移动端菜单
+    toggleMobileMenu() {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.classList.toggle('mobile-open');
+    }
+
+    // 搜索功能
+    searchFlowers(query) {
+        this.filteredFlowers = this.allFlowers.filter(flower =>
+            flower.name.toLowerCase().includes(query.toLowerCase())
+        );
+        this.currentPage = 1;
+        this.renderFlowers();
+    }
+
+    searchGardens(query) {
+        this.filteredGardens = this.allGardens.filter(garden =>
+            garden.name.toLowerCase().includes(query.toLowerCase())
+        );
+        this.currentPage = 1;
+        this.renderGardens();
+    }
+
+    // 渲染花朵（支持分页）
+    renderFlowers() {
+        const container = document.getElementById('flowersList');
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        const flowersToShow = this.filteredFlowers.slice(startIndex, endIndex);
+
+        container.innerHTML = '';
+        flowersToShow.forEach((flower, index) => {
+            const card = this.createFlowerCard(flower);
+            card.style.animationDelay = `${index * 0.1}s`;
+            container.appendChild(card);
+        });
+
+        this.renderPagination('flowerPagination', this.filteredFlowers.length);
+    }
+
+    // 渲染花田（支持分页）
+    renderGardens() {
+        const container = document.getElementById('gardensList');
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        const gardensToShow = this.filteredGardens.slice(startIndex, endIndex);
+
+        container.innerHTML = '';
+        gardensToShow.forEach((garden, index) => {
+            const card = this.createGardenCard(garden);
+            card.style.animationDelay = `${index * 0.1}s`;
+            container.appendChild(card);
+        });
+
+        this.renderPagination('gardenPagination', this.filteredGardens.length);
+    }
+
+    // 渲染分页
+    renderPagination(containerId, totalItems) {
+        const container = document.getElementById(containerId);
+        const totalPages = Math.ceil(totalItems / this.itemsPerPage);
+        
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let paginationHTML = '';
+        
+        // 上一页
+        paginationHTML += `<button ${this.currentPage === 1 ? 'disabled' : ''} onclick="app.changePage(${this.currentPage - 1})">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+        
+        // 页码
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === this.currentPage) {
+                paginationHTML += `<button class="current-page">${i}</button>`;
+            } else if (i === 1 || i === totalPages || Math.abs(i - this.currentPage) <= 2) {
+                paginationHTML += `<button onclick="app.changePage(${i})">${i}</button>`;
+            } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
+                paginationHTML += `<span>...</span>`;
+            }
+        }
+        
+        // 下一页
+        paginationHTML += `<button ${this.currentPage === totalPages ? 'disabled' : ''} onclick="app.changePage(${this.currentPage + 1})">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+        
+        container.innerHTML = paginationHTML;
+    }
+
+    changePage(page) {
+        this.currentPage = page;
+        const activeTab = document.querySelector('.tab-content.active').id;
+        if (activeTab === 'flowersTab') {
+            this.renderFlowers();
+        } else if (activeTab === 'gardensTab') {
+            this.renderGardens();
+        }
+    }
+
+    // 批量操作功能
+    toggleFlowerSelection(flowerId, checkbox) {
+        if (checkbox.checked) {
+            this.selectedFlowers.add(flowerId);
+        } else {
+            this.selectedFlowers.delete(flowerId);
+        }
+        this.updateBatchToolbar('flower');
+    }
+
+    toggleGardenSelection(gardenId, checkbox) {
+        if (checkbox.checked) {
+            this.selectedGardens.add(gardenId);
+        } else {
+            this.selectedGardens.delete(gardenId);
+        }
+        this.updateBatchToolbar('garden');
+    }
+
+    updateBatchToolbar(type) {
+        const toolbar = document.getElementById(`${type}BatchToolbar`);
+        const count = type === 'flower' ? this.selectedFlowers.size : this.selectedGardens.size;
+        const countElement = document.getElementById(`selected${type.charAt(0).toUpperCase() + type.slice(1)}Count`);
+        
+        if (count > 0) {
+            toolbar.classList.add('active');
+            countElement.textContent = count;
+        } else {
+            toolbar.classList.remove('active');
+        }
+    }
+
+    async batchWaterFlowers() {
+        if (this.selectedFlowers.size === 0) return;
+        
+        const promises = Array.from(this.selectedFlowers).map(flowerId =>
+            this.waterFlower(flowerId)
+        );
+        
+        try {
+            await Promise.all(promises);
+            this.cancelBatchSelection();
+            this.showNotification(`已为 ${this.selectedFlowers.size} 朵花浇水`);
+        } catch (error) {
+            alert('批量浇水失败');
+        }
+    }
+
+    showBatchScoreModal() {
+        if (this.selectedGardens.size === 0) return;
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>批量给花田加分</h3>
+            <p>已选择 ${this.selectedGardens.size} 个花田</p>
+            <form class="modal-form" onsubmit="app.batchScoreGardens(event)">
+                <input type="number" id="batchScorePoints" placeholder="输入加分数量" min="1" required>
+                <button type="submit">确认加分</button>
+            </form>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    async batchScoreGardens(event) {
+        event.preventDefault();
+        
+        const points = parseInt(document.getElementById('batchScorePoints').value);
+        const promises = Array.from(this.selectedGardens).map(gardenId =>
+            fetch(`/api/gardens/${gardenId}/score`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ points })
+            })
+        );
+        
+        try {
+            await Promise.all(promises);
+            this.closeModal();
+            this.cancelBatchSelection();
+            this.showNotification(`已为 ${this.selectedGardens.size} 个花田加分`);
+        } catch (error) {
+            alert('批量加分失败');
+        }
+    }
+
+    cancelBatchSelection() {
+        this.selectedFlowers.clear();
+        this.selectedGardens.clear();
+        document.querySelectorAll('.card-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.card.selected').forEach(card => card.classList.remove('selected'));
+        document.querySelectorAll('.batch-toolbar').forEach(toolbar => toolbar.classList.remove('active'));
+    }
+
+    // 数据导出功能
+    async exportData() {
+        try {
+            const [flowersRes, gardensRes, classesRes] = await Promise.all([
+                fetch('/api/flowers'),
+                fetch('/api/gardens'),
+                fetch('/api/classes')
+            ]);
+            
+            const flowers = await flowersRes.json();
+            const gardens = await gardensRes.json();
+            const classes = await classesRes.json();
+            
+            const wb = XLSX.utils.book_new();
+            
+            // 花朵数据
+            const flowerData = flowers.map(f => ({
+                '花朵名称': f.name,
+                '班级ID': f.class_id,
+                '分数': f.score,
+                '创建时间': new Date(f.created_at).toLocaleString()
+            }));
+            const flowerWs = XLSX.utils.json_to_sheet(flowerData);
+            XLSX.utils.book_append_sheet(wb, flowerWs, '花朵数据');
+            
+            // 花田数据
+            const gardenData = gardens.map(g => ({
+                '花田名称': g.name,
+                '班级ID': g.class_id,
+                '分数': g.score,
+                '创建时间': new Date(g.created_at).toLocaleString()
+            }));
+            const gardenWs = XLSX.utils.json_to_sheet(gardenData);
+            XLSX.utils.book_append_sheet(wb, gardenWs, '花田数据');
+            
+            // 班级数据
+            const classData = classes.map(c => ({
+                '班级名称': c.name,
+                '创建时间': new Date(c.created_at).toLocaleString()
+            }));
+            const classWs = XLSX.utils.json_to_sheet(classData);
+            XLSX.utils.book_append_sheet(wb, classWs, '班级数据');
+            
+            XLSX.writeFile(wb, `花园数据_${new Date().toISOString().split('T')[0]}.xlsx`);
+            this.showNotification('数据导出成功');
+        } catch (error) {
+            alert('导出失败');
+        }
+    }
+
+    // 统计图表
+    async loadStatsChart() {
+        if (!this.currentRankingClass) return;
+        
+        try {
+            const [flowersRes, gardensRes] = await Promise.all([
+                fetch(`/api/flowers?classId=${this.currentRankingClass}`),
+                fetch(`/api/gardens?classId=${this.currentRankingClass}`)
+            ]);
+            
+            const flowers = await flowersRes.json();
+            const gardens = await gardensRes.json();
+            
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            
+            if (this.chart) {
+                this.chart.destroy();
+            }
+            
+            this.chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [...flowers.map(f => f.name), ...gardens.map(g => g.name)],
+                    datasets: [{
+                        label: '分数',
+                        data: [...flowers.map(f => f.score), ...gardens.map(g => g.score)],
+                        backgroundColor: [
+                            ...flowers.map(() => 'rgba(76, 175, 80, 0.8)'),
+                            ...gardens.map(() => 'rgba(33, 150, 243, 0.8)')
+                        ],
+                        borderColor: [
+                            ...flowers.map(() => 'rgba(76, 175, 80, 1)'),
+                            ...gardens.map(() => 'rgba(33, 150, 243, 1)')
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            document.getElementById('chartContainer').style.display = 'block';
+        } catch (error) {
+            console.error('加载图表失败:', error);
+        }
     }
 }
 

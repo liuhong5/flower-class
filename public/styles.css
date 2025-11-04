@@ -1,13 +1,51 @@
+:root {
+    --primary-color: #4CAF50;
+    --primary-dark: #45a049;
+    --secondary-color: #2196F3;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --info-color: #9b59b6;
+    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --text-color: #333;
+    --text-light: #666;
+    --border-color: #e1e1e1;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --navbar-bg: rgba(255, 255, 255, 0.95);
+    --sidebar-bg: rgba(255, 255, 255, 0.9);
+    --content-bg: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] {
+    --primary-color: #66BB6A;
+    --primary-dark: #4CAF50;
+    --secondary-color: #42A5F5;
+    --danger-color: #EF5350;
+    --warning-color: #FFA726;
+    --info-color: #AB47BC;
+    --background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    --card-bg: rgba(45, 55, 72, 0.95);
+    --text-color: #e2e8f0;
+    --text-light: #a0aec0;
+    --border-color: #4a5568;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    --navbar-bg: rgba(45, 55, 72, 0.95);
+    --sidebar-bg: rgba(45, 55, 72, 0.9);
+    --content-bg: rgba(0, 0, 0, 0.1);
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--background);
     min-height: 100vh;
+    color: var(--text-color);
 }
 
 /* 登录界面 */
@@ -20,14 +58,15 @@ body {
 }
 
 .login-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--card-bg);
     padding: 40px;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
     backdrop-filter: blur(10px);
     width: 100%;
     max-width: 400px;
     text-align: center;
+    animation: slideInUp 0.6s ease-out;
 }
 
 .login-header {
@@ -115,13 +154,14 @@ body {
 /* 导航栏 */
 .navbar {
     grid-area: navbar;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--navbar-bg);
     backdrop-filter: blur(10px);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
+    animation: slideInDown 0.5s ease-out;
 }
 
 .nav-brand {
@@ -277,14 +317,16 @@ body {
 }
 
 .card {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--card-bg);
     border-radius: 15px;
     padding: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
     backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    animation: cardSlideIn 0.6s ease-out;
+    animation-fill-mode: both;
 }
 
 .card:hover {
@@ -824,4 +866,436 @@ body {
     .header-controls {
         justify-content: center;
     }
+}
+/* 动画效果 */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 主题切换按钮 */
+.theme-toggle {
+    background: none;
+    border: 2px solid var(--border-color);
+    border-radius: 50px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    margin-right: 15px;
+}
+
+.theme-toggle:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.05);
+}
+
+.theme-toggle i {
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover i {
+    transform: rotate(180deg);
+}
+
+/* 搜索框样式 */
+.search-container {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.search-box {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    border: 2px solid var(--border-color);
+    border-radius: 25px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
+}
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    font-size: 1.1rem;
+}
+
+/* 批量操作工具栏 */
+.batch-toolbar {
+    background: var(--card-bg);
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: none;
+    align-items: center;
+    gap: 15px;
+    box-shadow: var(--shadow);
+    animation: slideInUp 0.3s ease-out;
+}
+
+.batch-toolbar.active {
+    display: flex;
+}
+
+.batch-info {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.batch-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.batch-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.batch-water {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.batch-score {
+    background: var(--warning-color);
+    color: white;
+}
+
+.batch-cancel {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* 选择框样式 */
+.card-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.card.selected {
+    border: 2px solid var(--primary-color);
+    background: rgba(76, 175, 80, 0.1);
+}
+
+/* 分页样式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+    padding: 20px;
+}
+
+.pagination button {
+    padding: 8px 12px;
+    border: 2px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination .current-page {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* 统计图表容器 */
+.chart-container {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.chart-canvas {
+    width: 100%;
+    height: 300px;
+}
+
+/* 导出按钮 */
+.export-btn {
+    background: linear-gradient(135deg, var(--info-color), #8e44ad);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(155, 89, 182, 0.3);
+}
+
+/* 历史记录样式 */
+.history-container {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: var(--shadow);
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.history-item:hover {
+    background: rgba(76, 175, 80, 0.1);
+    transform: translateX(5px);
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-action {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.history-time {
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+/* 加载动画 */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 响应式优化 */
+@media (max-width: 1024px) {
+    .main-container {
+        grid-template-columns: 200px 1fr;
+    }
+    
+    .cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        grid-template-areas: 
+            "navbar"
+            "content";
+        grid-template-columns: 1fr;
+        grid-template-rows: 60px 1fr;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -250px;
+        top: 60px;
+        width: 250px;
+        height: calc(100vh - 60px);
+        z-index: 1000;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.mobile-open {
+        left: 0;
+    }
+    
+    .mobile-menu-btn {
+        display: block;
+        background: none;
+        border: none;
+        color: var(--text-color);
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 5px;
+    }
+    
+    .cards-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .rankings-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .content-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .header-controls {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .batch-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .batch-actions {
+        margin-left: 0;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 10px;
+    }
+    
+    .content-header {
+        padding: 15px;
+    }
+    
+    .card {
+        padding: 15px;
+    }
+    
+    .login-card {
+        padding: 30px 20px;
+        margin: 20px;
+    }
+    
+    .modal-content {
+        margin: 5% auto;
+        padding: 20px;
+        width: 95%;
+    }
+}
+
+/* 隐藏移动端菜单按钮在桌面端 */
+.mobile-menu-btn {
+    display: none;
 }
