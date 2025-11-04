@@ -5,10 +5,10 @@ const API_CONFIG = {
         baseURL: 'http://localhost:3000',
         socketURL: 'http://localhost:3000'
     },
-    // 生产环境 - Railway域名
+    // 生产环境 - Vercel域名
     production: {
-        baseURL: 'https://serene-caring-production.up.railway.app',
-        socketURL: 'https://serene-caring-production.up.railway.app'
+        baseURL: 'https://flower-class-mf5xu47vm-hong-lius-projects-c1a73057.vercel.app',
+        socketURL: 'https://flower-class-mf5xu47vm-hong-lius-projects-c1a73057.vercel.app'
     }
 };
 
