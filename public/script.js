@@ -1236,8 +1236,15 @@ class GardenApp {
 
     // 数据导出功能
     async exportData() {
+        // 等待XLSX库加载
+        let retries = 0;
+        while (typeof XLSX === 'undefined' && retries < 10) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retries++;
+        }
+        
         if (typeof XLSX === 'undefined') {
-            alert('导出功能加载中，请稍后再试');
+            alert('导出功能加载失败，请刷新页面重试');
             return;
         }
         
