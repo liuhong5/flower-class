@@ -510,27 +510,14 @@ supabase.from('classes').select('count').then(({ data, error }) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-const os = require('os');
+// Render需要监听端口和0.0.0.0
+const PORT = process.env.PORT || 10000;
 
-// 获取本机IP地址
-function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const interface of interfaces[name]) {
-      if (interface.family === 'IPv4' && !interface.internal) {
-        return interface.address;
-      }
-    }
-  }
-  return 'localhost';
-}
-
-const localIP = getLocalIP();
+// 增加超时配置解决502错误
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 120000;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 服务器运行在端口 ${PORT}`);
-  console.log(`🌐 本地访问: http://localhost:${PORT}`);
-  console.log(`🌐 局域网访问: http://${localIP}:${PORT}`);
-  console.log(`📱 手机访问: http://${localIP}:${PORT}`);
+  console.log(`🌐 Render访问: https://flower-class.onrender.com`);
 });
