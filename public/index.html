@@ -309,25 +309,35 @@
     <script>
         // 移动端优化
         document.addEventListener('DOMContentLoaded', () => {
-            // 底部导航事件
-            document.querySelectorAll('.bottom-nav-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    document.querySelectorAll('.bottom-nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                    app.switchTab(item.dataset.tab);
+            try {
+                // 底部导航事件
+                document.querySelectorAll('.bottom-nav-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        document.querySelectorAll('.bottom-nav-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        if (window.app && item.dataset.tab) {
+                            app.switchTab(item.dataset.tab);
+                        }
+                    });
                 });
-            });
-            
-            // 一键浇水
-            document.addEventListener('click', (e) => {
-                if (e.target.closest('.flower-visual') && window.innerWidth <= 768) {
-                    const card = e.target.closest('.card');
-                    const flowerId = card.querySelector('.water-btn')?.onclick?.toString().match(/\d+/)?.[0];
-                    if (flowerId && app.userRole === 'editor') {
-                        app.waterFlower(parseInt(flowerId));
+                
+                // 一键浇水
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.flower-visual') && window.innerWidth <= 768) {
+                        const card = e.target.closest('.card');
+                        const waterBtn = card ? card.querySelector('.water-btn') : null;
+                        if (waterBtn && window.app && app.userRole === 'editor') {
+                            const onclickStr = waterBtn.getAttribute('onclick');
+                            const flowerId = onclickStr ? onclickStr.match(/\d+/)?.[0] : null;
+                            if (flowerId) {
+                                app.waterFlower(parseInt(flowerId));
+                            }
+                        }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.log('Mobile optimization failed:', error);
+            }
         });
     </script>
     <script>
