@@ -11,17 +11,29 @@ class GardenApp {
         this.selectedGardens = new Set();
         this.selectedClasses = new Set();
         this.currentPage = 1;
-        this.itemsPerPage = 12;
+        this.itemsPerPage = window.innerWidth <= 768 ? 8 : 12; // 移动端减少每页数量
         this.allFlowers = [];
         this.allGardens = [];
         this.filteredFlowers = [];
         this.filteredGardens = [];
         this.searchDebounceTimer = null;
         this.isFullscreen = false;
+        this.cardCache = new Map(); // 卡片缓存
+        this.isMobile = window.innerWidth <= 768;
         
         // 初始化成就系统
         if (typeof AchievementSystem !== 'undefined') {
             this.achievementSystem = new AchievementSystem(this);
+        }
+        
+        // 初始化功能增强模块
+        if (typeof GardenEnhancements !== 'undefined') {
+            this.enhancements = new GardenEnhancements(this);
+        }
+        
+        // 初始化推送通知系统
+        if (typeof PushNotificationSystem !== 'undefined') {
+            this.pushNotifications = new PushNotificationSystem(this);
         }
         
         this.init();
@@ -302,11 +314,25 @@ class GardenApp {
     }
 
     async loadData() {
-        await this.loadClasses();
-        await this.loadClassSelects();
-        await this.loadFlowers();
-        await this.loadGardens();
-        await this.loadRankings();
+        // 移动端分批加载减少卡顿
+        if (this.isMobile) {
+            await this.loadClasses();
+            await this.loadClassSelects();
+            // 延迟加载非关键数据
+            setTimeout(() => {
+                this.loadFlowers();
+                this.loadGardens();
+            }, 100);
+            setTimeout(() => {
+                this.loadRankings();
+            }, 300);
+        } else {
+            await this.loadClasses();
+            await this.loadClassSelects();
+            await this.loadFlowers();
+            await this.loadGardens();
+            await this.loadRankings();
+        }
     }
 
     async loadClasses() {
@@ -360,27 +386,51 @@ class GardenApp {
 
     async loadFlowers() {
         try {
+            const cacheKey = `flowers_${this.currentClass || 'all'}`;
+            const cached = this.getCache(cacheKey);
+            if (cached) {
+                this.allFlowers = cached;
+                this.filteredFlowers = [...this.allFlowers];
+                this.renderFlowers();
+                return;
+            }
+            
             const url = this.currentClass ? `/api/flowers?classId=${this.currentClass}` : '/api/flowers';
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             this.allFlowers = await response.json();
             this.filteredFlowers = [...this.allFlowers];
+            this.setCache(cacheKey, this.allFlowers, 300000); // 5分钟缓存
             
             this.renderFlowers();
         } catch (error) {
-            console.error('加载花朵失败:', error);
+            this.handleError('加载花朵失败', error);
         }
     }
 
     async loadGardens() {
         try {
+            const cacheKey = `gardens_${this.currentClass || 'all'}`;
+            const cached = this.getCache(cacheKey);
+            if (cached) {
+                this.allGardens = cached;
+                this.filteredGardens = [...this.allGardens];
+                this.renderGardens();
+                return;
+            }
+            
             const url = this.currentClass ? `/api/gardens?classId=${this.currentClass}` : '/api/gardens';
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             this.allGardens = await response.json();
             this.filteredGardens = [...this.allGardens];
+            this.setCache(cacheKey, this.allGardens, 300000);
             
             this.renderGardens();
         } catch (error) {
-            console.error('加载花田失败:', error);
+            this.handleError('加载花田失败', error);
         }
     }
 
@@ -464,88 +514,97 @@ class GardenApp {
     }
 
     createFlowerCard(flower) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        
-        const flowerIcon = this.getFlowerIcon(flower.score);
-        
-        card.innerHTML = `
-            ${this.userRole === 'editor' ? `
-                <input type="checkbox" class="card-checkbox" onchange="app.toggleFlowerSelection(${flower.id}, this)">
-            ` : ''}
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-flower"></i>
-                    ${flower.name}
-                </div>
-                <div class="card-actions">
-                    <button class="action-btn achievement-btn" onclick="app.showFlowerAchievements(${flower.id})" title="查看成就">
-                        <i class="fas fa-trophy"></i>
-                    </button>
-                    ${this.userRole === 'editor' ? `
-                        <button class="action-btn water-btn" onclick="app.waterFlower(${flower.id})">
-                            <i class="fas fa-tint"></i>
-                        </button>
-                        <button class="action-btn delete-btn" onclick="app.deleteFlower(${flower.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-            <div class="flower-visual" id="flower-${flower.id}">${flowerIcon}</div>
-            <div class="card-score">${flower.score} 分</div>
-        `;
-        
-        // 添加选择事件
-        const checkbox = card.querySelector('.card-checkbox');
-        if (checkbox) {
-            checkbox.addEventListener('change', () => {
-                card.classList.toggle('selected', checkbox.checked);
-            });
+        // 检查缓存
+        const cacheKey = `flower_${flower.id}_${flower.score}_${this.userRole}`;
+        if (this.cardCache.has(cacheKey)) {
+            return this.cardCache.get(cacheKey).cloneNode(true);
         }
         
+        const card = document.createElement('div');
+        card.className = 'card';
+        const flowerIcon = this.getFlowerIcon(flower.score);
+        
+        // 移动端简化版本
+        if (this.isMobile) {
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title">${flower.name}</div>
+                    <div class="card-actions">
+                        ${this.userRole === 'editor' ? `<button class="action-btn water-btn" onclick="app.waterFlower(${flower.id})"><i class="fas fa-tint"></i></button>` : ''}
+                    </div>
+                </div>
+                <div class="flower-visual">${flowerIcon}</div>
+                <div class="card-score">${flower.score}分</div>
+            `;
+        } else {
+            card.innerHTML = `
+                ${this.userRole === 'editor' ? `<input type="checkbox" class="card-checkbox" onchange="app.toggleFlowerSelection(${flower.id}, this)">` : ''}
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-flower"></i>${flower.name}</div>
+                    <div class="card-actions">
+                        <button class="action-btn achievement-btn" onclick="app.showFlowerAchievements(${flower.id})"><i class="fas fa-trophy"></i></button>
+                        ${this.userRole === 'editor' ? `
+                            <button class="action-btn special-btn" onclick="app.showSpecialRecordModal('flowers', ${flower.id})"><i class="fas fa-star"></i></button>
+                            <button class="action-btn water-btn" onclick="app.waterFlower(${flower.id})"><i class="fas fa-tint"></i></button>
+                            <button class="action-btn delete-btn" onclick="app.deleteFlower(${flower.id})"><i class="fas fa-trash"></i></button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="flower-visual" id="flower-${flower.id}">${flowerIcon}</div>
+                <div class="card-score">${flower.score}分</div>
+            `;
+        }
+        
+        // 缓存卡片
+        this.cardCache.set(cacheKey, card.cloneNode(true));
         return card;
     }
 
     createGardenCard(garden) {
+        // 检查缓存
+        const cacheKey = `garden_${garden.id}_${garden.score}_${this.userRole}`;
+        if (this.cardCache.has(cacheKey)) {
+            return this.cardCache.get(cacheKey).cloneNode(true);
+        }
+        
         const card = document.createElement('div');
         card.className = 'card';
         
-        card.innerHTML = `
-            ${this.userRole === 'editor' ? `
-                <input type="checkbox" class="card-checkbox" onchange="app.toggleGardenSelection(${garden.id}, this)">
-            ` : ''}
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-leaf"></i>
-                    ${garden.name}
+        // 移动端简化版本
+        if (this.isMobile) {
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title">${garden.name}</div>
+                    <div class="card-actions">
+                        <button class="action-btn view-btn" onclick="app.showGardenDetail(${garden.id})"><i class="fas fa-eye"></i></button>
+                        ${this.userRole === 'editor' ? `<button class="action-btn score-btn" onclick="app.showScoreGardenModal(${garden.id})"><i class="fas fa-plus"></i></button>` : ''}
+                    </div>
                 </div>
-                <div class="card-actions">
-                    <button class="action-btn view-btn" onclick="app.showGardenDetail(${garden.id})">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    ${this.userRole === 'editor' ? `
-                        <button class="action-btn score-btn" onclick="app.showScoreGardenModal(${garden.id})">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button class="action-btn delete-btn" onclick="app.deleteGarden(${garden.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : ''}
+                <div class="flower-visual">🌿</div>
+                <div class="card-score">${garden.score}分</div>
+            `;
+        } else {
+            card.innerHTML = `
+                ${this.userRole === 'editor' ? `<input type="checkbox" class="card-checkbox" onchange="app.toggleGardenSelection(${garden.id}, this)">` : ''}
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-leaf"></i>${garden.name}</div>
+                    <div class="card-actions">
+                        <button class="action-btn view-btn" onclick="app.showGardenDetail(${garden.id})"><i class="fas fa-eye"></i></button>
+                        ${this.userRole === 'editor' ? `
+                            <button class="action-btn score-btn" onclick="app.showScoreGardenModal(${garden.id})"><i class="fas fa-plus"></i></button>
+                            <button class="action-btn week-btn" onclick="app.showWeekScoreModal(${garden.id})"><i class="fas fa-calendar-week"></i></button>
+                            <button class="action-btn special-btn" onclick="app.showSpecialRecordModal('gardens', ${garden.id})"><i class="fas fa-star"></i></button>
+                            <button class="action-btn delete-btn" onclick="app.deleteGarden(${garden.id})"><i class="fas fa-trash"></i></button>
+                        ` : ''}
+                    </div>
                 </div>
-            </div>
-            <div class="flower-visual">🌿</div>
-            <div class="card-score">${garden.score} 分</div>
-        `;
-        
-        // 添加选择事件
-        const checkbox = card.querySelector('.card-checkbox');
-        if (checkbox) {
-            checkbox.addEventListener('change', () => {
-                card.classList.toggle('selected', checkbox.checked);
-            });
+                <div class="flower-visual">🌿</div>
+                <div class="card-score">${garden.score}分</div>
+            `;
         }
         
+        // 缓存卡片
+        this.cardCache.set(cacheKey, card.cloneNode(true));
         return card;
     }
 
@@ -1118,6 +1177,7 @@ class GardenApp {
 
     // 搜索功能
     searchFlowers(query) {
+        if (query.length < 2 && this.isMobile) return; // 移动端至少输入2个字符
         this.filteredFlowers = this.allFlowers.filter(flower =>
             flower.name.toLowerCase().includes(query.toLowerCase())
         );
@@ -1126,6 +1186,7 @@ class GardenApp {
     }
 
     searchGardens(query) {
+        if (query.length < 2 && this.isMobile) return;
         this.filteredGardens = this.allGardens.filter(garden =>
             garden.name.toLowerCase().includes(query.toLowerCase())
         );
@@ -1140,13 +1201,16 @@ class GardenApp {
         const endIndex = startIndex + this.itemsPerPage;
         const flowersToShow = this.filteredFlowers.slice(startIndex, endIndex);
 
-        container.innerHTML = '';
+        // 使用DocumentFragment减少DOM操作
+        const fragment = document.createDocumentFragment();
         flowersToShow.forEach((flower, index) => {
             const card = this.createFlowerCard(flower);
-            card.style.animationDelay = `${index * 0.1}s`;
-            container.appendChild(card);
+            if (index < 6) card.style.animationDelay = `${index * 0.05}s`; // 减少动画延迟
+            fragment.appendChild(card);
         });
-
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
         this.renderPagination('flowerPagination', this.filteredFlowers.length);
     }
 
@@ -1157,13 +1221,16 @@ class GardenApp {
         const endIndex = startIndex + this.itemsPerPage;
         const gardensToShow = this.filteredGardens.slice(startIndex, endIndex);
 
-        container.innerHTML = '';
+        // 使用DocumentFragment减少DOM操作
+        const fragment = document.createDocumentFragment();
         gardensToShow.forEach((garden, index) => {
             const card = this.createGardenCard(garden);
-            card.style.animationDelay = `${index * 0.1}s`;
-            container.appendChild(card);
+            if (index < 6) card.style.animationDelay = `${index * 0.05}s`; // 减少动画延迟
+            fragment.appendChild(card);
         });
-
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
         this.renderPagination('gardenPagination', this.filteredGardens.length);
     }
 
@@ -1213,7 +1280,26 @@ class GardenApp {
         }
     }
 
-    // 批量操作功能
+    // 批量操作优化
+    async batchOperation(items, operation) {
+        const batchSize = 5;
+        const results = [];
+        
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
+            const batchResults = await Promise.allSettled(
+                batch.map(item => operation(item))
+            );
+            results.push(...batchResults);
+            
+            if (i + batchSize < items.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        return results;
+    }
+    
     toggleFlowerSelection(flowerId, checkbox) {
         if (checkbox.checked) {
             this.selectedFlowers.add(flowerId);
@@ -1516,7 +1602,7 @@ class GardenApp {
     // 防抖搜索
     debounceSearch(callback) {
         clearTimeout(this.searchDebounceTimer);
-        this.searchDebounceTimer = setTimeout(callback, 300);
+        this.searchDebounceTimer = setTimeout(callback, this.isMobile ? 500 : 300); // 移动端增加防抖时间
     }
 
     // 快捷键处理
@@ -2618,10 +2704,348 @@ class GardenApp {
         
         images.forEach(img => imageObserver.observe(img));
     }
+    // 横屏功能
+    toggleLandscape() {
+        document.body.classList.toggle('landscape-mode');
+        if (document.body.classList.contains('landscape-mode')) {
+            screen.orientation?.lock?.('landscape').catch(() => {});
+        } else {
+            screen.orientation?.unlock?.();
+        }
+    }
+
+    // 图表下载功能
+    async downloadCharts() {
+        const charts = ['statsChart', 'pieChart', 'radarChart', 'trendChart'];
+        const images = [];
+        
+        for (const chartId of charts) {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = `${chartId}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            }
+        }
+        this.showNotification('图表下载完成');
+    }
+
+    // 特殊记录功能
+    showSpecialRecordModal(type, id) {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>添加特殊记录</h3>
+            <form class="modal-form" onsubmit="app.addSpecialRecord(event, '${type}', ${id})">
+                <textarea id="specialRecord" placeholder="请输入特殊表现记录（如：课堂上表现优异）" required></textarea>
+                <button type="submit">添加记录</button>
+            </form>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    async addSpecialRecord(event, type, id) {
+        event.preventDefault();
+        const record = document.getElementById('specialRecord').value;
+        
+        try {
+            const response = await fetch(`/api/${type}/${id}/special-record`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ record })
+            });
+            
+            if (response.ok) {
+                this.closeModal();
+                this.showNotification('特殊记录添加成功');
+                this.loadData();
+            }
+        } catch (error) {
+            alert('添加特殊记录失败');
+        }
+    }
+
+    // 周表加分功能
+    showWeekScoreModal(gardenId) {
+        const weeks = [];
+        const now = new Date();
+        for (let i = 0; i < 20; i++) {
+            const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+            weeks.push({
+                number: i + 1,
+                start: weekStart.toLocaleDateString()
+            });
+        }
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>周表加分</h3>
+            <div class="week-selector">
+                ${weeks.map(week => `
+                    <button class="week-btn" onclick="app.selectWeek(${gardenId}, ${week.number})">
+                        第${week.number}周<br>
+                        <small>${week.start}</small>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    async selectWeek(gardenId, weekNumber) {
+        const points = prompt(`给第${weekNumber}周加多少分？`);
+        if (points && !isNaN(points)) {
+            try {
+                const response = await fetch(`/api/gardens/${gardenId}/score`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({ points: parseInt(points) })
+                });
+                
+                if (response.ok) {
+                    this.closeModal();
+                    this.showNotification(`第${weekNumber}周加分成功`);
+                    this.loadData();
+                }
+            } catch (error) {
+                alert('加分失败');
+            }
+        }
+    }
+
+    // 连续成就检查
+    checkConsecutiveAchievements() {
+        const recentScores = JSON.parse(localStorage.getItem('recentScores') || '[]');
+        if (recentScores.length >= 5) {
+            const lastFive = recentScores.slice(-5);
+            const allFirst = lastFive.every(score => score.rank === 1);
+            if (allFirst) {
+                this.unlockAchievement('consecutive_first', '连续五次小组加分第一');
+            }
+        }
+    }
+
+    // 缓存管理
+    getCache(key) {
+        try {
+            const cached = localStorage.getItem(key);
+            if (!cached) return null;
+            const { data, timestamp, ttl } = JSON.parse(cached);
+            if (Date.now() - timestamp > ttl) {
+                localStorage.removeItem(key);
+                return null;
+            }
+            return data;
+        } catch { return null; }
+    }
+    
+    setCache(key, data, ttl = 300000) {
+        try {
+            localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now(), ttl }));
+        } catch (e) {
+            console.warn('缓存失败:', e);
+        }
+    }
+    
+    // 错误处理
+    handleError(message, error) {
+        console.error(message, error);
+        this.showNotification(`${message}: ${error.message || '网络错误'}`);
+        this.logError(message, error);
+    }
+    
+    logError(message, error) {
+        const errorLog = { message, error: error.message, timestamp: Date.now(), url: location.href };
+        const logs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
+        logs.push(errorLog);
+        if (logs.length > 50) logs.shift();
+        localStorage.setItem('errorLogs', JSON.stringify(logs));
+    }
+    
+    // 性能监控
+    measurePerformance(name, fn) {
+        const start = performance.now();
+        const result = fn();
+        const duration = performance.now() - start;
+        if (duration > 100) console.warn(`慢操作: ${name} - ${duration.toFixed(2)}ms`);
+        return result;
+    }
+    
+    // 内存管理
+    cleanup() {
+        this.cardCache.clear();
+        if (this.socket) this.socket.disconnect();
+        clearInterval(this.refreshTimer);
+        document.removeEventListener('scroll', this.scrollHandler);
+    }
+    
+    unlockAchievement(id, name) {
+        const achievements = JSON.parse(localStorage.getItem('achievements') || '[]');
+        if (!achievements.includes(id)) {
+            achievements.push(id);
+            localStorage.setItem('achievements', JSON.stringify(achievements));
+            
+            const notification = document.createElement('div');
+            notification.className = 'achievement-notification';
+            notification.innerHTML = `
+                <div class="achievement-title">🏆 成就解锁！</div>
+                <div class="achievement-desc">${this.escapeHtml(name)}</div>
+            `;
+            
+            document.body.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => document.body.removeChild(notification), 500);
+            }, 3000);
+        }
+    }
+    
+    // XSS防护
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    // 下拉刷新
+    initPullRefresh() {
+        if (!this.isMobile) return;
+        
+        const mainContent = document.querySelector('.main-content');
+        if (!mainContent) return;
+        
+        mainContent.classList.add('pull-refresh');
+        const indicator = document.createElement('div');
+        indicator.className = 'pull-refresh-indicator';
+        indicator.innerHTML = '<i class="fas fa-arrow-down"></i>';
+        mainContent.appendChild(indicator);
+        
+        let startY = 0;
+        
+        mainContent.addEventListener('touchstart', (e) => {
+            if (mainContent.scrollTop === 0) {
+                startY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+        
+        mainContent.addEventListener('touchend', (e) => {
+            if (mainContent.scrollTop === 0 && !this.pullRefresh.isRefreshing) {
+                const currentY = e.changedTouches[0].clientY;
+                const diff = currentY - startY;
+                
+                if (diff > 80) {
+                    this.triggerRefresh();
+                } else {
+                    indicator.style.transform = 'translateX(-50%)';
+                    indicator.classList.remove('active');
+                }
+            }
+        });
+    }
+    
+    async triggerRefresh() {
+        if (this.pullRefresh.isRefreshing) return;
+        
+        this.pullRefresh.isRefreshing = true;
+        const indicator = document.querySelector('.pull-refresh-indicator');
+        
+        try {
+            indicator.innerHTML = '<div class="loading-spinner"></div>';
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('flowers_') || key.startsWith('gardens_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            await this.loadData();
+            this.showNotification('刷新成功');
+        } catch (error) {
+            this.handleError('刷新失败', error);
+        } finally {
+            setTimeout(() => {
+                this.pullRefresh.isRefreshing = false;
+                indicator.style.transform = 'translateX(-50%)';
+                indicator.innerHTML = '<i class="fas fa-arrow-down"></i>';
+            }, 1000);
+        }
+    }
+    
+    // 网络监控
+    initNetworkMonitor() {
+        const statusBar = document.createElement('div');
+        statusBar.className = 'network-status';
+        statusBar.textContent = '网络已断开';
+        document.body.appendChild(statusBar);
+        
+        window.addEventListener('online', () => {
+            statusBar.className = 'network-status online';
+            statusBar.textContent = '网络已连接';
+            setTimeout(() => statusBar.classList.remove('online'), 2000);
+        });
+        
+        window.addEventListener('offline', () => {
+            statusBar.className = 'network-status offline';
+        });
+    }
+    
+    // 加载状态
+    showLoading(container) {
+        if (this.isLoading) return;
+        this.isLoading = true;
+        
+        const loading = document.createElement('div');
+        loading.className = 'loading-container';
+        loading.innerHTML = '<div class="loading-spinner"></div><div>加载中...</div>';
+        
+        if (typeof container === 'string') {
+            container = document.getElementById(container);
+        }
+        
+        if (container) container.appendChild(loading);
+    }
+    
+    hideLoading() {
+        this.isLoading = false;
+        document.querySelectorAll('.loading-container').forEach(el => el.remove());
+    }
+    
+    showSkeleton(container, count = 3) {
+        const skeletons = Array.from({ length: count }, () => 
+            '<div class="card skeleton" style="height: 200px; margin-bottom: 20px;"></div>'
+        ).join('');
+        
+        if (typeof container === 'string') {
+            container = document.getElementById(container);
+        }
+        
+        if (container) container.innerHTML = skeletons;
+    }
 }
 
 // 初始化应用
 const app = new GardenApp();
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', () => {
+    if (app) app.cleanup();
+});
+
+// 添加事件监听
+document.addEventListener('DOMContentLoaded', () => {
+    const chartDownloadBtn = document.getElementById('chartDownloadBtn');
+    if (chartDownloadBtn) {
+        chartDownloadBtn.addEventListener('click', () => {
+            app.downloadCharts();
+        });
+    }
+});
 
 // 移动端性能优化
 if ('serviceWorker' in navigator) {

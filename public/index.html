@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>云端花园管理系统</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="optimize.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4CAF50">
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="script.js" as="script">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
 </head>
 <body>
     <!-- 登录界面 -->
@@ -218,6 +223,10 @@
                         <button onclick="app.loadAdvancedCharts()" class="chart-btn">📊 加载图表</button>
                         <button onclick="app.printRankings()" class="print-btn">🖨️ 打印</button>
                         <button onclick="app.toggleFullscreen()" class="fullscreen-btn">🔍 全屏</button>
+                        <button id="chartDownloadBtn" class="chart-download-btn">
+                            <i class="fas fa-chart-bar"></i>
+                            下载图表
+                        </button>
                     </div>
                 </div>
                 <div class="charts-grid">
@@ -314,11 +323,14 @@
         <div class="growth-effect">🌱</div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="mobile-optimize.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="config.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="achievements-system.js"></script>
+    <script src="achievements-system.js" defer></script>
+    <script src="garden-enhancements.js" defer></script>
+    <script src="push-notifications.js" defer></script>
     <script src="script.js"></script>
     <script>
         // 移动端优化
@@ -364,5 +376,15 @@
             }
         });
     </script>
+    
+    <!-- 横屏按钮 -->
+    <button id="landscapeBtn" class="landscape-btn" onclick="app.toggleLandscape()">
+        <i class="fas fa-mobile-alt"></i>
+    </button>
+    
+    <!-- 网络状态指示器 -->
+    <div id="networkStatus" class="network-status" style="display: none;">
+        <span id="networkText">网络已断开</span>
+    </div>
 </body>
 </html>

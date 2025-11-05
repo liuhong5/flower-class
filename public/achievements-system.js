@@ -48,7 +48,38 @@ class AchievementSystem {
             
             // 传奇成就
             { type: 'legendary', icon: '💎', name: '完美表现', desc: '达到45分', condition: (f) => f.score >= 45 },
-            { type: 'legendary', icon: '🌟', name: '传奇花朵', desc: '达到50分', condition: (f) => f.score >= 50 }
+            { type: 'legendary', icon: '🌟', name: '传奇花朵', desc: '达到50分', condition: (f) => f.score >= 50 },
+            
+            // 时间成就
+            { type: 'time', icon: '⏰', name: '早起的鸟儿', desc: '早晨获得分数', condition: (f) => f.score >= 1 },
+            { type: 'time', icon: '🌅', name: '晨光初现', desc: '连续早起表现', condition: (f) => f.score >= 5 },
+            { type: 'time', icon: '🌙', name: '夜猫子', desc: '晚间努力学习', condition: (f) => f.score >= 3 },
+            
+            // 连续成就
+            { type: 'streak', icon: '🔥', name: '连续进步', desc: '连续获得分数', condition: (f) => f.score >= 7 },
+            { type: 'streak', icon: '⚡', name: '势如破竹', desc: '快速连续成长', condition: (f) => f.score >= 12 },
+            { type: 'streak', icon: '🚀', name: '火箭速度', desc: '超快速成长', condition: (f) => f.score >= 18 },
+            
+            // 季节成就
+            { type: 'season', icon: '🌸', name: '春天的花朵', desc: '春季表现优异', condition: (f) => f.score >= 10 },
+            { type: 'season', icon: '☀️', name: '夏日阳光', desc: '夏季活力满满', condition: (f) => f.score >= 15 },
+            { type: 'season', icon: '🍂', name: '秋收硕果', desc: '秋季收获满满', condition: (f) => f.score >= 20 },
+            { type: 'season', icon: '❄️', name: '冬日暖阳', desc: '冬季温暖成长', condition: (f) => f.score >= 12 },
+            
+            // 创意成就
+            { type: 'creative', icon: '🎨', name: '创意之星', desc: '表现富有创意', condition: (f) => f.score >= 8 },
+            { type: 'creative', icon: '💡', name: '灵感闪现', desc: '充满创新想法', condition: (f) => f.score >= 14 },
+            { type: 'creative', icon: '🌈', name: '彩虹之花', desc: '多彩表现', condition: (f) => f.score >= 22 },
+            
+            // 团队成就
+            { type: 'team', icon: '🤝', name: '团队合作', desc: '与他人协作优秀', condition: (f) => f.score >= 6 },
+            { type: 'team', icon: '👥', name: '集体荣誉', desc: '为团队贡献力量', condition: (f) => f.score >= 11 },
+            { type: 'team', icon: '🏆', name: '团队之星', desc: '团队表现突出', condition: (f) => f.score >= 17 },
+            
+            // 坚持成就
+            { type: 'persistence', icon: '💪', name: '坚持不懈', desc: '持续努力进步', condition: (f) => f.score >= 9 },
+            { type: 'persistence', icon: '🎯', name: '目标达成', desc: '实现既定目标', condition: (f) => f.score >= 16 },
+            { type: 'persistence', icon: '🏔️', name: '攀登高峰', desc: '不断挑战自我', condition: (f) => f.score >= 24 }
         ];
     }
 
@@ -91,7 +122,32 @@ class AchievementSystem {
             
             // 传奇成就
             { type: 'legendary', icon: '💎', name: '花园天堂', desc: '达到250分', condition: (g) => g.score >= 250 },
-            { type: 'legendary', icon: '🌟', name: '传奇花园', desc: '达到300分', condition: (g) => g.score >= 300 }
+            { type: 'legendary', icon: '🌟', name: '传奇花园', desc: '达到300分', condition: (g) => g.score >= 300 },
+            
+            // 效率成就
+            { type: 'efficiency', icon: '⚡', name: '高效花田', desc: '快速积累分数', condition: (g) => g.score >= 60 },
+            { type: 'efficiency', icon: '🚀', name: '超级效率', desc: '极速发展', condition: (g) => g.score >= 120 },
+            { type: 'efficiency', icon: '💨', name: '闪电速度', desc: '闪电般成长', condition: (g) => g.score >= 180 },
+            
+            // 创新成就
+            { type: 'innovation', icon: '💡', name: '创新花田', desc: '独特的发展模式', condition: (g) => g.score >= 80 },
+            { type: 'innovation', icon: '🔬', name: '实验先锋', desc: '勇于尝试新方法', condition: (g) => g.score >= 140 },
+            { type: 'innovation', icon: '🎯', name: '精准策略', desc: '策略运用得当', condition: (g) => g.score >= 200 },
+            
+            // 环保成就
+            { type: 'eco', icon: '🌍', name: '绿色花田', desc: '环保理念突出', condition: (g) => g.score >= 45 },
+            { type: 'eco', icon: '♻️', name: '可持续发展', desc: '注重可持续性', condition: (g) => g.score >= 85 },
+            { type: 'eco', icon: '🌱', name: '生态卫士', desc: '生态保护典范', condition: (g) => g.score >= 160 },
+            
+            // 美学成就
+            { type: 'aesthetic', icon: '🎨', name: '美丽花田', desc: '注重美观设计', condition: (g) => g.score >= 55 },
+            { type: 'aesthetic', icon: '🌺', name: '艺术花园', desc: '具有艺术价值', condition: (g) => g.score >= 110 },
+            { type: 'aesthetic', icon: '🏛️', name: '建筑大师', desc: '设计精美绝伦', condition: (g) => g.score >= 190 },
+            
+            // 社区成就
+            { type: 'community', icon: '🏘️', name: '社区花田', desc: '服务社区发展', condition: (g) => g.score >= 65 },
+            { type: 'community', icon: '🤝', name: '合作典范', desc: '促进团队合作', condition: (g) => g.score >= 125 },
+            { type: 'community', icon: '🌟', name: '社区之光', desc: '社区建设标杆', condition: (g) => g.score >= 220 }
         ];
     }
 
@@ -130,7 +186,32 @@ class AchievementSystem {
             // 传奇成就
             { type: 'legendary', icon: '🏆', name: '传奇班级', desc: '总分达到1000分', condition: (stats) => stats.totalScore >= 1000 },
             { type: 'legendary', icon: '👑', name: '王者班级', desc: '总分达到1500分', condition: (stats) => stats.totalScore >= 1500 },
-            { type: 'legendary', icon: '💎', name: '钻石班级', desc: '总分达到2000分', condition: (stats) => stats.totalScore >= 2000 }
+            { type: 'legendary', icon: '💎', name: '钻石班级', desc: '总分达到2000分', condition: (stats) => stats.totalScore >= 2000 },
+            
+            // 文化成就
+            { type: 'culture', icon: '📚', name: '书香班级', desc: '学习氛围浓厚', condition: (stats) => stats.avgScore >= 12 && stats.totalFlowers >= 10 },
+            { type: 'culture', icon: '🎭', name: '文艺班级', desc: '文艺活动丰富', condition: (stats) => stats.totalGardens >= 6 && stats.avgScore >= 18 },
+            { type: 'culture', icon: '🎪', name: '活力班级', desc: '充满青春活力', condition: (stats) => stats.totalFlowers >= 18 && stats.totalGardens >= 8 },
+            
+            // 创新成就
+            { type: 'innovation', icon: '🚀', name: '创新班级', desc: '勇于创新突破', condition: (stats) => stats.highScoreCount >= 6 && stats.avgScore >= 16 },
+            { type: 'innovation', icon: '💡', name: '智慧班级', desc: '充满智慧火花', condition: (stats) => stats.totalScore >= 600 && stats.avgScore >= 20 },
+            { type: 'innovation', icon: '🔬', name: '科研班级', desc: '科研精神突出', condition: (stats) => stats.highScoreCount >= 10 && stats.totalScore >= 800 },
+            
+            // 团结成就
+            { type: 'unity', icon: '🤝', name: '团结班级', desc: '班级团结一心', condition: (stats) => stats.totalFlowers >= 12 && stats.totalGardens >= 5 },
+            { type: 'unity', icon: '💪', name: '凝聚力强', desc: '班级凝聚力强', condition: (stats) => stats.avgScore >= 17 && stats.totalFlowers >= 15 },
+            { type: 'unity', icon: '🌟', name: '众星捧月', desc: '人人都是明星', condition: (stats) => stats.highScoreCount >= 8 && stats.totalFlowers >= 16 },
+            
+            // 进步成就
+            { type: 'progress', icon: '📈', name: '进步班级', desc: '整体进步明显', condition: (stats) => stats.totalScore >= 400 && stats.avgScore >= 14 },
+            { type: 'progress', icon: '🎯', name: '目标导向', desc: '目标明确执行力强', condition: (stats) => stats.totalScore >= 700 && stats.highScoreCount >= 7 },
+            { type: 'progress', icon: '🏃', name: '奔跑班级', desc: '永远在奔跑路上', condition: (stats) => stats.totalScore >= 1200 && stats.avgScore >= 22 },
+            
+            // 特色成就
+            { type: 'special', icon: '🎨', name: '特色班级', desc: '具有鲜明特色', condition: (stats) => stats.totalGardens >= 10 && stats.avgScore >= 19 },
+            { type: 'special', icon: '🌈', name: '多彩班级', desc: '多元化发展', condition: (stats) => stats.totalFlowers >= 20 && stats.totalGardens >= 10 },
+            { type: 'special', icon: '⭐', name: '明星班级', desc: '各方面都很优秀', condition: (stats) => stats.totalScore >= 1800 && stats.avgScore >= 25 && stats.highScoreCount >= 15 }
         ];
     }
 
@@ -248,7 +329,21 @@ class AchievementSystem {
             'quality': '🏆 质量成就',
             'highscore': '⭐ 高分成就',
             'totalscore': '🥇 总分成就',
-            'balance': '⚖️ 平衡成就'
+            'balance': '⚖️ 平衡成就',
+            'time': '⏰ 时间成就',
+            'streak': '🔥 连续成就',
+            'season': '🌸 季节成就',
+            'creative': '🎨 创意成就',
+            'team': '🤝 团队成就',
+            'persistence': '💪 坚持成就',
+            'efficiency': '⚡ 效率成就',
+            'innovation': '💡 创新成就',
+            'eco': '🌍 环保成就',
+            'aesthetic': '🎨 美学成就',
+            'community': '🏘️ 社区成就',
+            'culture': '📚 文化成就',
+            'unity': '🤝 团结成就',
+            'progress': '📈 进步成就'
         };
         
         let html = '';
