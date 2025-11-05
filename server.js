@@ -42,6 +42,41 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// 注册接口
+app.post('/api/register', async (req, res) => {
+  const { username } = req.body;
+  
+  try {
+    // 检查用户名是否已存在
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', username)
+      .single();
+    
+    if (existingUser) {
+      return res.status(400).json({ error: '用户名已存在' });
+    }
+    
+    // 创建新用户
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ 
+        username, 
+        password: 'user123', // 默认密码
+        role: 'user' 
+      }])
+      .select();
+    
+    if (error) throw error;
+    
+    res.json({ message: '注册成功', username });
+  } catch (error) {
+    console.error('注册失败:', error);
+    res.status(500).json({ error: '注册失败' });
+  }
+});
+
 // 登录接口
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
@@ -49,10 +84,21 @@ app.post('/api/login', async (req, res) => {
   try {
     let userRole = null;
     
-    if (username === 'editor' && password === 'myweb666') {
+    // 检查固定管理员账号
+    if (username === 'admin' && password === 'GardenMaster2024!@#') {
       userRole = 'editor';
-    } else if (username === 'user' && password === 'user123') {
-      userRole = 'user';
+    } else {
+      // 检查数据库中的用户
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
+      
+      if (user) {
+        userRole = user.role;
+      }
     }
     
     if (userRole) {

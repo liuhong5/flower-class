@@ -40,6 +40,11 @@ class GardenApp {
             this.login();
         });
 
+        // 注册按钮
+        document.getElementById('registerBtn').addEventListener('click', () => {
+            this.showRegisterModal();
+        });
+
         // 退出登录
         document.getElementById('logoutBtn').addEventListener('click', () => {
             this.logout();
@@ -452,6 +457,9 @@ class GardenApp {
                     ${flower.name}
                 </div>
                 <div class="card-actions">
+                    <button class="action-btn achievement-btn" onclick="app.showFlowerAchievements(${flower.id})">
+                        <i class="fas fa-trophy"></i>
+                    </button>
                     ${this.userRole === 'editor' ? `
                         <button class="action-btn water-btn" onclick="app.waterFlower(${flower.id})">
                             <i class="fas fa-tint"></i>
@@ -537,6 +545,7 @@ class GardenApp {
             });
 
             if (response.ok) {
+                const updatedFlower = await response.json();
                 const flowerElement = document.getElementById(`flower-${flowerId}`);
                 if (flowerElement) {
                     flowerElement.classList.add('watered');
@@ -544,6 +553,8 @@ class GardenApp {
                         flowerElement.classList.remove('watered');
                     }, 800);
                 }
+                // 检查花朵成就
+                this.checkFlowerAchievements(updatedFlower);
             } else {
                 alert('浇水失败');
             }
@@ -1843,24 +1854,25 @@ class GardenApp {
             alert('创建标签失败');
         }
     }
-    // 成就系统
-    checkAchievements(type, data) {
+    // 成就系统 - 只针对花朵
+    checkFlowerAchievements(flower) {
         const achievements = [
-            { id: 'first_flower', name: '第一朵花', condition: (type, data) => type === 'flower' && data.score === 1 },
-            { id: 'score_10', name: '十分达成', condition: (type, data) => data.score === 10 },
-            { id: 'score_20', name: '二十分达成', condition: (type, data) => data.score === 20 },
-            { id: 'daily_water', name: '每日浇水', condition: (type, data) => type === 'water' },
-            { id: 'garden_master', name: '花田大师', condition: (type, data) => type === 'garden' && data.score >= 50 }
+            { id: `flower_${flower.id}_first_score`, name: `${flower.name}的第一分`, condition: (f) => f.score === 1 },
+            { id: `flower_${flower.id}_score_5`, name: `${flower.name}达到5分`, condition: (f) => f.score === 5 },
+            { id: `flower_${flower.id}_score_10`, name: `${flower.name}达成10分`, condition: (f) => f.score === 10 },
+            { id: `flower_${flower.id}_score_15`, name: `${flower.name}达成15分`, condition: (f) => f.score === 15 },
+            { id: `flower_${flower.id}_score_20`, name: `${flower.name}达成20分`, condition: (f) => f.score === 20 },
+            { id: `flower_${flower.id}_blooming`, name: `${flower.name}盛开了！`, condition: (f) => f.score >= 25 }
         ];
         
         achievements.forEach(achievement => {
-            if (achievement.condition(type, data)) {
-                this.unlockAchievement(achievement);
+            if (achievement.condition(flower)) {
+                this.unlockFlowerAchievement(achievement, flower);
             }
         });
     }
 
-    unlockAchievement(achievement) {
+    unlockFlowerAchievement(achievement, flower) {
         // 检查是否已解锁
         const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
         if (unlockedAchievements.includes(achievement.id)) return;
@@ -1870,17 +1882,18 @@ class GardenApp {
         localStorage.setItem('achievements', JSON.stringify(unlockedAchievements));
         
         // 显示成就通知
-        this.showAchievementNotification(achievement);
+        this.showFlowerAchievementNotification(achievement, flower);
     }
 
-    showAchievementNotification(achievement) {
+    showFlowerAchievementNotification(achievement, flower) {
         const notification = document.createElement('div');
-        notification.className = 'achievement-notification';
+        notification.className = 'achievement-notification flower-achievement';
         notification.innerHTML = `
-            <div class="achievement-icon">🏆</div>
+            <div class="achievement-icon">🌸</div>
             <div class="achievement-content">
-                <div class="achievement-title">成就解锁！</div>
+                <div class="achievement-title">花朵成就解锁！</div>
                 <div class="achievement-name">${achievement.name}</div>
+                <div class="achievement-flower">🌱 ${this.getFlowerIcon(flower.score)}</div>
             </div>
         `;
         
@@ -1895,7 +1908,7 @@ class GardenApp {
             setTimeout(() => {
                 document.body.removeChild(notification);
             }, 300);
-        }, 3000);
+        }, 4000);
     }
 
     // 通知系统
@@ -2000,6 +2013,95 @@ class GardenApp {
         });
         
         localStorage.removeItem('offlineActions');
+    }
+
+    // 显示注册模态框
+    showRegisterModal() {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>注册新用户</h3>
+            <p class="register-info">注册后将成为普通用户，初始密码为 <strong>user123</strong></p>
+            <form class="modal-form" onsubmit="app.registerUser(event)">
+                <input type="text" id="newUsername" placeholder="请输入用户名" required minlength="3" maxlength="20">
+                <div class="form-note">用户名长度3-20个字符</div>
+                <button type="submit">注册用户</button>
+            </form>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    // 注册用户
+    async registerUser(event) {
+        event.preventDefault();
+        
+        const username = document.getElementById('newUsername').value.trim();
+        
+        if (username.length < 3 || username.length > 20) {
+            alert('用户名长度必须在3-20个字符之间');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.closeModal();
+                alert(`用户 "${username}" 注册成功！\n初始密码：user123\n请使用新用户名和密码登录。`);
+            } else {
+                alert(data.error || '注册失败');
+            }
+        } catch (error) {
+            alert('注册失败，请检查网络连接');
+        }
+    }
+
+    // 查看花朵成就
+    showFlowerAchievements(flowerId) {
+        const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
+        const flowerAchievements = unlockedAchievements.filter(id => id.includes(`flower_${flowerId}_`));
+        
+        const flower = this.allFlowers.find(f => f.id === flowerId);
+        if (!flower) return;
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>🏆 ${flower.name} 的成就</h3>
+            <div class="flower-achievement-display">
+                <div class="flower-icon-large">${this.getFlowerIcon(flower.score)}</div>
+                <div class="flower-score-large">${flower.score} 分</div>
+            </div>
+            <div class="achievements-list">
+                ${this.getFlowerAchievementsList(flower, flowerAchievements)}
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    getFlowerAchievementsList(flower, unlockedAchievements) {
+        const allAchievements = [
+            { id: `flower_${flower.id}_first_score`, name: `${flower.name}的第一分`, icon: '🌱', unlocked: flower.score >= 1 },
+            { id: `flower_${flower.id}_score_5`, name: `${flower.name}达到5分`, icon: '🌻', unlocked: flower.score >= 5 },
+            { id: `flower_${flower.id}_score_10`, name: `${flower.name}达到10分`, icon: '🌼', unlocked: flower.score >= 10 },
+            { id: `flower_${flower.id}_score_15`, name: `${flower.name}达到15分`, icon: '🌸', unlocked: flower.score >= 15 },
+            { id: `flower_${flower.id}_score_20`, name: `${flower.name}达到20分`, icon: '🌺', unlocked: flower.score >= 20 },
+            { id: `flower_${flower.id}_blooming`, name: `${flower.name}盛开了！`, icon: '🌹', unlocked: flower.score >= 25 }
+        ];
+        
+        return allAchievements.map(achievement => `
+            <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
+                <div class="achievement-icon-small">${achievement.unlocked ? achievement.icon : '🔒'}</div>
+                <div class="achievement-name-small">${achievement.name}</div>
+                <div class="achievement-status">${achievement.unlocked ? '✅ 已解锁' : '🔒 未解锁'}</div>
+            </div>
+        `).join('');
     }
 }
 
