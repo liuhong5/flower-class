@@ -1035,6 +1035,74 @@ body {
     color: white;
 }
 
+.batch-delete {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+    color: white;
+}
+
+/* 警告消息样式 */
+.warning-message {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.warning-message i {
+    color: #f39c12;
+    font-size: 20px;
+}
+
+.warning-message p {
+    margin: 0;
+    color: #856404;
+    font-weight: 500;
+}
+
+.danger-btn {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.danger-btn:hover {
+    background: linear-gradient(135deg, #d32f2f, #b71c1c);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.secondary-btn {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.secondary-btn:hover {
+    background: #e0e0e0;
+    border-color: #bbb;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
 /* 选择框样式 */
 .card-checkbox {
     position: absolute;

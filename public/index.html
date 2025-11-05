@@ -108,6 +108,19 @@
                     <i class="fas fa-info-circle"></i>
                     <span>点击班级卡片或“进入”按钮可以查看该班级的花朵、花田和排行榜</span>
                 </div>
+                <div id="classBatchToolbar" class="batch-toolbar">
+                    <div class="batch-info">
+                        已选择 <span id="selectedClassCount">0</span> 个班级
+                    </div>
+                    <div class="batch-actions">
+                        <button class="batch-btn batch-delete" onclick="app.showBatchDeleteClassModal()">
+                            <i class="fas fa-trash"></i> 批量删除
+                        </button>
+                        <button class="batch-btn batch-cancel" onclick="app.cancelBatchSelection()">
+                            <i class="fas fa-times"></i> 取消选择
+                        </button>
+                    </div>
+                </div>
                 <div id="classesList" class="cards-grid"></div>
             </div>
 

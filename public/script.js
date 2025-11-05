@@ -9,6 +9,7 @@ class GardenApp {
         this.currentRankingClass = null;
         this.selectedFlowers = new Set();
         this.selectedGardens = new Set();
+        this.selectedClasses = new Set();
         this.currentPage = 1;
         this.itemsPerPage = 12;
         this.allFlowers = [];
@@ -419,6 +420,9 @@ class GardenApp {
         card.className = 'card clickable';
         
         card.innerHTML = `
+            ${this.userRole === 'editor' ? `
+                <input type="checkbox" class="card-checkbox" onchange="app.toggleClassSelection(${classItem.id}, this)">
+            ` : ''}
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-school"></i>
@@ -441,9 +445,17 @@ class GardenApp {
             </div>
         `;
         
+        // 添加选择事件
+        const checkbox = card.querySelector('.card-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                card.classList.toggle('selected', checkbox.checked);
+            });
+        }
+        
         // 添加点击事件
         card.addEventListener('click', (e) => {
-            if (!e.target.closest('.enter-class-btn') && !e.target.closest('.delete-btn')) {
+            if (!e.target.closest('.enter-class-btn') && !e.target.closest('.delete-btn') && !e.target.closest('.card-checkbox')) {
                 this.enterClass(classItem.id, classItem.name);
             }
         });
@@ -1222,7 +1234,12 @@ class GardenApp {
 
     updateBatchToolbar(type) {
         const toolbar = document.getElementById(`${type}BatchToolbar`);
-        const count = type === 'flower' ? this.selectedFlowers.size : this.selectedGardens.size;
+        let count;
+        switch(type) {
+            case 'flower': count = this.selectedFlowers.size; break;
+            case 'garden': count = this.selectedGardens.size; break;
+            case 'class': count = this.selectedClasses.size; break;
+        }
         const countElement = document.getElementById(`selected${type.charAt(0).toUpperCase() + type.slice(1)}Count`);
         
         if (count > 0) {
@@ -1230,6 +1247,66 @@ class GardenApp {
             countElement.textContent = count;
         } else {
             toolbar.classList.remove('active');
+        }
+    }
+    
+    // 班级批量选择
+    toggleClassSelection(classId, checkbox) {
+        if (checkbox.checked) {
+            this.selectedClasses.add(classId);
+        } else {
+            this.selectedClasses.delete(classId);
+        }
+        this.updateBatchToolbar('class');
+    }
+    
+    // 批量删除班级
+    showBatchDeleteClassModal() {
+        if (this.selectedClasses.size === 0) return;
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <h3>批量删除班级</h3>
+            <div class="warning-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>警告：删除班级将同时删除该班级下的所有花朵和花田！</p>
+            </div>
+            <p>已选择 ${this.selectedClasses.size} 个班级</p>
+            <div class="modal-buttons">
+                <button onclick="app.batchDeleteClasses()" class="danger-btn">确认删除</button>
+                <button onclick="app.closeModal()" class="secondary-btn">取消</button>
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    async batchDeleteClasses() {
+        if (this.selectedClasses.size === 0) return;
+        
+        const promises = Array.from(this.selectedClasses).map(classId =>
+            fetch(`/api/classes/${classId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            })
+        );
+        
+        try {
+            await Promise.all(promises);
+            this.closeModal();
+            this.cancelBatchSelection();
+            this.showNotification(`已删除 ${this.selectedClasses.size} 个班级`);
+            
+            // 如果删除的班级包含当前选择的班级，清空选择
+            if (this.selectedClasses.has(parseInt(this.currentClass))) {
+                this.currentClass = null;
+                this.currentRankingClass = null;
+                document.getElementById('rankingsContent').style.display = 'none';
+                document.getElementById('noClassSelected').style.display = 'block';
+            }
+        } catch (error) {
+            alert('批量删除失败');
         }
     }
 
@@ -1302,6 +1379,7 @@ class GardenApp {
     cancelBatchSelection() {
         this.selectedFlowers.clear();
         this.selectedGardens.clear();
+        this.selectedClasses.clear();
         document.querySelectorAll('.card-checkbox').forEach(cb => cb.checked = false);
         document.querySelectorAll('.card.selected').forEach(card => card.classList.remove('selected'));
         document.querySelectorAll('.batch-toolbar').forEach(toolbar => toolbar.classList.remove('active'));
