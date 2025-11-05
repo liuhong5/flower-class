@@ -2197,7 +2197,110 @@ class GardenApp {
             </div>
         `).join('');
     }
+    
+    // 移动端优化功能
+    toggleFabMenu() {
+        const menu = document.getElementById('fabMenu');
+        menu.classList.toggle('show');
+    }
+    
+    quickAddFlower() {
+        this.toggleFabMenu();
+        this.showAddFlowerModal();
+    }
+    
+    quickAddGarden() {
+        this.toggleFabMenu();
+        this.showAddGardenModal();
+    }
+    
+    quickWater() {
+        this.toggleFabMenu();
+        // 批量浇水最近的花朵
+        const flowers = document.querySelectorAll('.water-btn');
+        if (flowers.length > 0) {
+            const flowerId = flowers[0].onclick.toString().match(/\d+/)?.[0];
+            if (flowerId) {
+                this.waterFlower(parseInt(flowerId));
+            }
+        }
+    }
+    
+    // 性能优化 - 虚拟滚动
+    renderVirtualFlowers() {
+        const container = document.getElementById('flowersList');
+        if (this.filteredFlowers.length < 50) {
+            this.renderFlowers();
+            return;
+        }
+        
+        const itemHeight = 200;
+        const containerHeight = 600;
+        const visibleCount = Math.ceil(containerHeight / itemHeight);
+        
+        container.style.height = `${containerHeight}px`;
+        container.style.overflow = 'auto';
+        
+        let startIndex = 0;
+        const renderVisible = () => {
+            const scrollTop = container.scrollTop;
+            startIndex = Math.floor(scrollTop / itemHeight);
+            const endIndex = Math.min(startIndex + visibleCount + 5, this.filteredFlowers.length);
+            
+            container.innerHTML = '';
+            for (let i = startIndex; i < endIndex; i++) {
+                const flower = this.filteredFlowers[i];
+                const card = this.createFlowerCard(flower);
+                card.style.position = 'absolute';
+                card.style.top = `${i * itemHeight}px`;
+                card.style.width = '100%';
+                container.appendChild(card);
+            }
+        };
+        
+        container.addEventListener('scroll', () => {
+            requestAnimationFrame(renderVisible);
+        });
+        
+        renderVisible();
+    }
+    
+    // 图片懒加载
+    lazyLoadImages() {
+        const images = document.querySelectorAll('img[data-src]');
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.remove('lazy');
+                    imageObserver.unobserve(img);
+                }
+            });
+        });
+        
+        images.forEach(img => imageObserver.observe(img));
+    }
 }
 
 // 初始化应用
 const app = new GardenApp();
+
+// 移动端性能优化
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+}
+
+// 预加载关键资源
+const preloadLinks = [
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
+    'https://cdn.jsdelivr.net/npm/chart.js'
+];
+
+preloadLinks.forEach(href => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.href = href;
+    link.as = href.includes('.css') ? 'style' : 'script';
+    document.head.appendChild(link);
+});
