@@ -94,14 +94,6 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
   }
   
   try {
-    // 验证旧密码
-    if (username === 'admin') {
-      if (oldPassword !== 'GardenMaster2024!@#') {
-        return res.status(400).json({ error: '原密码错误' });
-      }
-      return res.status(400).json({ error: '管理员密码无法修改' });
-    }
-    
     const { data: user } = await supabase
       .from('users')
       .select('password')
@@ -154,28 +146,16 @@ app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   
   try {
-    let userRole = null;
+    // 检查数据库中的用户（包括管理员）
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
     
-    // 检查固定管理员账号
-    if (username === 'admin' && password === 'GardenMaster2024!@#') {
-      userRole = 'editor';
-    } else {
-      // 检查数据库中的用户
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .eq('password', password)
-        .single();
-      
-      if (user) {
-        userRole = user.role;
-      }
-    }
-    
-    if (userRole) {
-      const token = jwt.sign({ username, role: userRole }, JWT_SECRET);
-      res.json({ token, role: userRole, username });
+    if (user && user.password === password) {
+      const token = jwt.sign({ username, role: user.role }, JWT_SECRET);
+      res.json({ token, role: user.role, username });
     } else {
       res.status(401).json({ error: '用户名或密码错误' });
     }
