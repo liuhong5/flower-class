@@ -1583,6 +1583,9 @@ class GardenApp {
             const flowers = flowersData.data || flowersData;
             const gardens = gardensData.data || gardensData;
             
+            // 柱状图 - 分数对比
+            this.createBarChart(flowers, gardens);
+            
             // 饼图 - 分数分布
             this.createPieChart(flowers, gardens);
             
@@ -1600,9 +1603,94 @@ class GardenApp {
         }
     }
 
+    createBarChart(flowers, gardens) {
+        const barCtx = document.getElementById('statsChart')?.getContext('2d');
+        if (!barCtx) return;
+        
+        // 销毁之前的图表
+        if (this.barChart) {
+            this.barChart.destroy();
+        }
+        
+        // 合并花朵和花田数据，按分数排序
+        const allItems = [
+            ...flowers.map(f => ({ name: f.name, score: f.score, type: '花朵' })),
+            ...gardens.map(g => ({ name: g.name, score: g.score, type: '花田' }))
+        ].sort((a, b) => b.score - a.score).slice(0, 10); // 只显示前10名
+        
+        this.barChart = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: allItems.map(item => item.name),
+                datasets: [{
+                    label: '分数',
+                    data: allItems.map(item => item.score),
+                    backgroundColor: allItems.map(item => 
+                        item.type === '花朵' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(33, 150, 243, 0.8)'
+                    ),
+                    borderColor: allItems.map(item => 
+                        item.type === '花朵' ? 'rgba(76, 175, 80, 1)' : 'rgba(33, 150, 243, 1)'
+                    ),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            generateLabels: function() {
+                                return [
+                                    {
+                                        text: '花朵',
+                                        fillStyle: 'rgba(76, 175, 80, 0.8)',
+                                        strokeStyle: 'rgba(76, 175, 80, 1)',
+                                        lineWidth: 2
+                                    },
+                                    {
+                                        text: '花田',
+                                        fillStyle: 'rgba(33, 150, 243, 0.8)',
+                                        strokeStyle: 'rgba(33, 150, 243, 1)',
+                                        lineWidth: 2
+                                    }
+                                ];
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '分数排行榜 (前10名)'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '分数'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '名称'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     createPieChart(flowers, gardens) {
         const pieCtx = document.getElementById('pieChart')?.getContext('2d');
         if (!pieCtx) return;
+        
+        // 销毁之前的图表
+        if (this.pieChart) {
+            this.pieChart.destroy();
+        }
         
         const scoreRanges = {
             '0-5分': 0, '6-10分': 0, '11-15分': 0, '16-20分': 0, '20分以上': 0
@@ -1616,7 +1704,7 @@ class GardenApp {
             else scoreRanges['20分以上']++;
         });
         
-        new Chart(pieCtx, {
+        this.pieChart = new Chart(pieCtx, {
             type: 'pie',
             data: {
                 labels: Object.keys(scoreRanges),
@@ -1625,7 +1713,16 @@ class GardenApp {
                     backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '分数分布'
+                    }
+                }
+            }
         });
     }
 
@@ -1633,11 +1730,16 @@ class GardenApp {
         const radarCtx = document.getElementById('radarChart')?.getContext('2d');
         if (!radarCtx) return;
         
+        // 销毁之前的图表
+        if (this.radarChart) {
+            this.radarChart.destroy();
+        }
+        
         const avgFlowerScore = flowers.reduce((sum, f) => sum + f.score, 0) / flowers.length || 0;
         const avgGardenScore = gardens.reduce((sum, g) => sum + g.score, 0) / gardens.length || 0;
         const maxScore = Math.max(...flowers.map(f => f.score), ...gardens.map(g => g.score));
         
-        new Chart(radarCtx, {
+        this.radarChart = new Chart(radarCtx, {
             type: 'radar',
             data: {
                 labels: ['平均分', '最高分', '参与度', '活跃度', '成长性'],
@@ -1649,13 +1751,27 @@ class GardenApp {
                     borderWidth: 2
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '班级综合表现'
+                    }
+                }
+            }
         });
     }
 
     async createTrendChart() {
         const trendCtx = document.getElementById('trendChart')?.getContext('2d');
         if (!trendCtx) return;
+        
+        // 销毁之前的图表
+        if (this.trendChart) {
+            this.trendChart.destroy();
+        }
         
         // 模拟趋势数据（实际应从服务器获取历史数据）
         const dates = [];
@@ -1667,7 +1783,7 @@ class GardenApp {
             scores.push(Math.floor(Math.random() * 50) + 50);
         }
         
-        new Chart(trendCtx, {
+        this.trendChart = new Chart(trendCtx, {
             type: 'line',
             data: {
                 labels: dates,
@@ -1676,10 +1792,29 @@ class GardenApp {
                     data: scores,
                     borderColor: 'rgba(33, 150, 243, 1)',
                     backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                    tension: 0.4
+                    tension: 0.4,
+                    fill: true
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '分数趋势 (近7天)'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '总分'
+                        }
+                    }
+                }
+            }
         });
     }
 
