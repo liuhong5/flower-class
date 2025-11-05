@@ -132,6 +132,11 @@ class GardenApp {
                 this.closeModal();
             }
         });
+        
+        // 修改密码按钮
+        document.getElementById('changePasswordBtn').addEventListener('click', () => {
+            this.showChangePasswordModal();
+        });
 
         // 初始化主题
         this.initTheme();
@@ -805,6 +810,10 @@ class GardenApp {
             const scoresResponse = await fetch(`/api/gardens/${gardenId}/scores`);
             const scoreHistory = await scoresResponse.json();
             
+            // 获取花田统计信息
+            const statsResponse = await fetch(`/api/gardens/${gardenId}/stats`);
+            const stats = await statsResponse.json();
+            
             // 获取所有花朵用于添加
             const allFlowersResponse = await fetch('/api/flowers');
             const allFlowers = await allFlowersResponse.json();
@@ -821,6 +830,27 @@ class GardenApp {
             const modalBody = document.getElementById('gardenDetailBody');
             modalBody.innerHTML = `
                 <h3><i class="fas fa-leaf"></i> ${garden.name} - 花朵管理</h3>
+                
+                <div class="garden-stats">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.totalFlowers}</div>
+                            <div class="stat-label">花朵数量</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.averageScore}</div>
+                            <div class="stat-label">平均分</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.maxScore}</div>
+                            <div class="stat-label">最高分</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.gardenBonusScore}</div>
+                            <div class="stat-label">花田加分</div>
+                        </div>
+                    </div>
+                </div>
                 
                 ${this.userRole === 'editor' ? `
                 <div class="add-flower-section">
@@ -853,7 +883,7 @@ class GardenApp {
                 </div>
                 
                 <div class="score-history">
-                    <h4>加分记录</h4>
+                    <h4>加分记录（不计入花朵总分）</h4>
                     <div class="score-table">
                         ${scoreHistory.length > 0 ? `
                             <table>
@@ -2019,15 +2049,79 @@ class GardenApp {
     showRegisterModal() {
         const modalBody = document.getElementById('modalBody');
         modalBody.innerHTML = `
-            <h3>注册新用户</h3>
+            <div class="modal-header">
+                <h3>注册新用户</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
             <p class="register-info">注册后将成为普通用户，初始密码为 <strong>user123</strong></p>
             <form class="modal-form" onsubmit="app.registerUser(event)">
                 <input type="text" id="newUsername" placeholder="请输入用户名" required minlength="3" maxlength="20">
                 <div class="form-note">用户名长度3-20个字符</div>
-                <button type="submit">注册用户</button>
+                <div class="modal-buttons">
+                    <button type="submit" class="primary-btn">注册用户</button>
+                    <button type="button" class="secondary-btn" onclick="app.closeModal()">取消</button>
+                </div>
             </form>
         `;
         document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 显示修改密码模态框
+    showChangePasswordModal() {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>修改密码</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <form class="modal-form" onsubmit="app.changePassword(event)">
+                <input type="password" id="oldPassword" placeholder="请输入原密码" required>
+                <input type="password" id="newPassword" placeholder="请输入新密码" required minlength="6">
+                <input type="password" id="confirmPassword" placeholder="再次输入新密码" required minlength="6">
+                <div class="form-note">密码长度至少6个字符</div>
+                <div class="modal-buttons">
+                    <button type="submit" class="primary-btn">修改密码</button>
+                    <button type="button" class="secondary-btn" onclick="app.closeModal()">取消</button>
+                </div>
+            </form>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 修改密码
+    async changePassword(event) {
+        event.preventDefault();
+        
+        const oldPassword = document.getElementById('oldPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (newPassword !== confirmPassword) {
+            alert('两次输入的密码不一致');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ oldPassword, newPassword })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.closeModal();
+                alert('密码修改成功！');
+            } else {
+                alert(data.error || '修改密码失败');
+            }
+        } catch (error) {
+            alert('修改密码失败，请检查网络连接');
+        }
     }
 
     // 注册用户

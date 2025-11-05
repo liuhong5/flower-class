@@ -46,13 +46,17 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/register', async (req, res) => {
   const { username } = req.body;
   
+  if (!username || username.trim().length < 3) {
+    return res.status(400).json({ error: '用户名长度至少3个字符' });
+  }
+  
   try {
     // 检查用户名是否已存在
-    const { data: existingUser, error: checkError } = await supabase
+    const { data: existingUser } = await supabase
       .from('users')
       .select('username')
-      .eq('username', username)
-      .single();
+      .eq('username', username.trim())
+      .maybeSingle();
     
     if (existingUser) {
       return res.status(400).json({ error: '用户名已存在' });
@@ -62,18 +66,86 @@ app.post('/api/register', async (req, res) => {
     const { data, error } = await supabase
       .from('users')
       .insert([{ 
-        username, 
+        username: username.trim(), 
         password: 'user123', // 默认密码
         role: 'user' 
       }])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('数据库插入错误:', error);
+      throw error;
+    }
     
-    res.json({ message: '注册成功', username });
+    res.json({ message: '注册成功', username: username.trim() });
   } catch (error) {
     console.error('注册失败:', error);
-    res.status(500).json({ error: '注册失败' });
+    res.status(500).json({ error: '注册失败: ' + error.message });
+  }
+});
+
+// 修改密码接口
+app.post('/api/change-password', authenticateToken, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const username = req.user.username;
+  
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: '新密码长度至少6个字符' });
+  }
+  
+  try {
+    // 验证旧密码
+    if (username === 'admin') {
+      if (oldPassword !== 'GardenMaster2024!@#') {
+        return res.status(400).json({ error: '原密码错误' });
+      }
+      return res.status(400).json({ error: '管理员密码无法修改' });
+    }
+    
+    const { data: user } = await supabase
+      .from('users')
+      .select('password')
+      .eq('username', username)
+      .single();
+    
+    if (!user || user.password !== oldPassword) {
+      return res.status(400).json({ error: '原密码错误' });
+    }
+    
+    // 更新密码
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('username', username);
+    
+    if (error) throw error;
+    
+    res.json({ message: '密码修改成功' });
+  } catch (error) {
+    console.error('修改密码失败:', error);
+    res.status(500).json({ error: '修改密码失败' });
+  }
+});
+
+// 重置密码接口
+app.post('/api/reset-password', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'editor') {
+    return res.status(403).json({ error: '权限不足' });
+  }
+  
+  const { username } = req.body;
+  
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ password: 'user123' })
+      .eq('username', username);
+    
+    if (error) throw error;
+    
+    res.json({ message: '密码已重置为 user123' });
+  } catch (error) {
+    res.status(500).json({ error: '重置密码失败' });
   }
 });
 
@@ -384,6 +456,174 @@ app.delete('/api/classes/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: '删除班级失败' });
   }
+});
+
+// 获取花田中的花朵
+app.get('/api/gardens/:id/flowers', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const { data, error } = await supabase
+      .from('garden_flowers')
+      .select(`
+        flowers (
+          id, name, score, created_at
+        )
+      `)
+      .eq('garden_id', id);
+    
+    if (error) throw error;
+    
+    const flowers = data.map(item => item.flowers);
+    res.json(flowers || []);
+  } catch (error) {
+    res.status(500).json({ error: '获取花田花朵失败' });
+  }
+});
+
+// 获取花田加分记录
+app.get('/api/gardens/:id/scores', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const { data, error } = await supabase
+      .from('scoring_logs')
+      .select('*')
+      .eq('garden_id', id)
+      .order('scored_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: '获取加分记录失败' });
+  }
+});
+
+// 获取花田统计信息
+app.get('/api/gardens/:id/stats', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // 获取花田中的花朵
+    const { data: gardenFlowers, error: flowersError } = await supabase
+      .from('garden_flowers')
+      .select(`
+        flowers (
+          score
+        )
+      `)
+      .eq('garden_id', id);
+    
+    if (flowersError) throw flowersError;
+    
+    const scores = gardenFlowers.map(item => item.flowers.score);
+    const totalFlowers = scores.length;
+    const totalScore = scores.reduce((sum, score) => sum + score, 0);
+    const averageScore = totalFlowers > 0 ? (totalScore / totalFlowers).toFixed(1) : 0;
+    const maxScore = totalFlowers > 0 ? Math.max(...scores) : 0;
+    const minScore = totalFlowers > 0 ? Math.min(...scores) : 0;
+    
+    // 获取花田加分记录
+    const { data: scoringLogs, error: logsError } = await supabase
+      .from('scoring_logs')
+      .select('points')
+      .eq('garden_id', id);
+    
+    if (logsError) throw logsError;
+    
+    const gardenBonusScore = scoringLogs.reduce((sum, log) => sum + log.points, 0);
+    
+    res.json({
+      totalFlowers,
+      totalScore,
+      averageScore: parseFloat(averageScore),
+      maxScore,
+      minScore,
+      gardenBonusScore
+    });
+  } catch (error) {
+    res.status(500).json({ error: '获取统计信息失败' });
+  }
+});
+
+// 添加花朵到花田
+app.post('/api/gardens/:id/flowers', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'editor') {
+    return res.status(403).json({ error: '权限不足' });
+  }
+  
+  const { id } = req.params;
+  const { flowerId } = req.body;
+  
+  try {
+    const { data, error } = await supabase
+      .from('garden_flowers')
+      .insert([{ garden_id: id, flower_id: flowerId }])
+      .select();
+    
+    if (error) throw error;
+    
+    io.emit('flowerAddedToGarden', { gardenId: id, flowerId });
+    res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: '添加花朵失败' });
+  }
+});
+
+// 从花田移除花朵
+app.delete('/api/gardens/:gardenId/flowers/:flowerId', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'editor') {
+    return res.status(403).json({ error: '权限不足' });
+  }
+  
+  const { gardenId, flowerId } = req.params;
+  
+  try {
+    const { error } = await supabase
+      .from('garden_flowers')
+      .delete()
+      .eq('garden_id', gardenId)
+      .eq('flower_id', flowerId);
+    
+    if (error) throw error;
+    
+    io.emit('flowerRemovedFromGarden', { gardenId, flowerId });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: '移除花朵失败' });
+  }
+});
+
+// 获取排行榜
+app.get('/api/rankings', async (req, res) => {
+  const { classId } = req.query;
+  
+  try {
+    let flowerQuery = supabase.from('flowers').select('*');
+    let gardenQuery = supabase.from('gardens').select('*');
+    
+    if (classId) {
+      flowerQuery = flowerQuery.eq('class_id', classId);
+      gardenQuery = gardenQuery.eq('class_id', classId);
+    }
+    
+    const [flowersResult, gardensResult] = await Promise.all([
+      flowerQuery.order('score', { ascending: false }),
+      gardenQuery.order('score', { ascending: false })
+    ]);
+    
+    res.json({
+      flowers: flowersResult.data || [],
+      gardens: gardensResult.data || []
+    });
+  } catch (error) {
+    res.status(500).json({ error: '获取排行榜失败' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`服务器运行在端口 ${PORT}`);
 });
 
 // 获取花田中的花朵
