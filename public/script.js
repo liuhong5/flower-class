@@ -18,6 +18,11 @@ class GardenApp {
         this.searchDebounceTimer = null;
         this.isFullscreen = false;
         
+        // 初始化成就系统
+        if (typeof AchievementSystem !== 'undefined') {
+            this.achievementSystem = new AchievementSystem(this);
+        }
+        
         this.init();
     }
 
@@ -462,7 +467,7 @@ class GardenApp {
                     ${flower.name}
                 </div>
                 <div class="card-actions">
-                    <button class="action-btn achievement-btn" onclick="app.showFlowerAchievements(${flower.id})">
+                    <button class="action-btn achievement-btn" onclick="app.showFlowerAchievements(${flower.id})" title="查看成就">
                         <i class="fas fa-trophy"></i>
                     </button>
                     ${this.userRole === 'editor' ? `
@@ -782,7 +787,14 @@ class GardenApp {
             });
 
             if (response.ok) {
+                const updatedGarden = await response.json();
                 this.closeModal();
+                
+                // 检查花田成就
+                this.checkGardenAchievements(updatedGarden);
+                // 检查班级成就
+                this.checkClassAchievements();
+                
                 // 如果花田详情打开，刷新显示
                 if (document.getElementById('gardenDetailModal').style.display === 'block') {
                     this.showGardenDetail(gardenId);
@@ -1268,7 +1280,17 @@ class GardenApp {
         );
         
         try {
-            await Promise.all(promises);
+            const responses = await Promise.all(promises);
+            const updatedGardens = await Promise.all(responses.map(r => r.json()));
+            
+            // 检查每个花田的成就
+            updatedGardens.forEach(garden => {
+                this.checkGardenAchievements(garden);
+            });
+            
+            // 检查班级成就
+            this.checkClassAchievements();
+            
             this.closeModal();
             this.cancelBatchSelection();
             this.showNotification(`已为 ${this.selectedGardens.size} 个花田加分`);
@@ -2019,22 +2041,46 @@ class GardenApp {
             alert('创建标签失败');
         }
     }
-    // 成就系统 - 只针对花朵
+    // 成就系统 - 花朵成就检查
     checkFlowerAchievements(flower) {
-        const achievements = [
-            { id: `flower_${flower.id}_first_score`, name: `${flower.name}的第一分`, condition: (f) => f.score === 1 },
-            { id: `flower_${flower.id}_score_5`, name: `${flower.name}达到5分`, condition: (f) => f.score === 5 },
-            { id: `flower_${flower.id}_score_10`, name: `${flower.name}达成10分`, condition: (f) => f.score === 10 },
-            { id: `flower_${flower.id}_score_15`, name: `${flower.name}达成15分`, condition: (f) => f.score === 15 },
-            { id: `flower_${flower.id}_score_20`, name: `${flower.name}达成20分`, condition: (f) => f.score === 20 },
-            { id: `flower_${flower.id}_blooming`, name: `${flower.name}盛开了！`, condition: (f) => f.score >= 25 }
-        ];
+        if (this.achievementSystem) {
+            this.achievementSystem.checkFlowerAchievements(flower);
+        }
+    }
+    
+    // 花田成就检查
+    checkGardenAchievements(garden) {
+        if (this.achievementSystem) {
+            this.achievementSystem.checkGardenAchievements(garden);
+        }
+    }
+    
+    // 班级成就检查
+    async checkClassAchievements() {
+        if (!this.achievementSystem || !this.currentRankingClass) return;
         
-        achievements.forEach(achievement => {
-            if (achievement.condition(flower)) {
-                this.unlockFlowerAchievement(achievement, flower);
-            }
-        });
+        try {
+            const [flowersRes, gardensRes] = await Promise.all([
+                fetch(`/api/flowers?classId=${this.currentRankingClass}`),
+                fetch(`/api/gardens?classId=${this.currentRankingClass}`)
+            ]);
+            
+            const flowers = await flowersRes.json();
+            const gardens = await gardensRes.json();
+            
+            const stats = {
+                totalFlowers: flowers.length,
+                totalGardens: gardens.length,
+                totalScore: [...flowers, ...gardens].reduce((sum, item) => sum + item.score, 0),
+                avgScore: (flowers.length + gardens.length) > 0 ? 
+                    [...flowers, ...gardens].reduce((sum, item) => sum + item.score, 0) / (flowers.length + gardens.length) : 0,
+                highScoreCount: [...flowers, ...gardens].filter(item => item.score >= 20).length
+            };
+            
+            this.achievementSystem.checkClassAchievements(this.currentRankingClass, stats);
+        } catch (error) {
+            console.error('检查班级成就失败:', error);
+        }
     }
 
     unlockFlowerAchievement(achievement, flower) {
@@ -2294,37 +2340,106 @@ class GardenApp {
 
     // 查看花朵成就
     showFlowerAchievements(flowerId) {
-        const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
-        const flowerAchievements = unlockedAchievements.filter(id => id.includes(`flower_${flowerId}_`));
-        
         const flower = this.allFlowers.find(f => f.id === flowerId);
         if (!flower) return;
         
+        const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
+        const totalAchievements = this.achievementSystem ? 
+            this.achievementSystem.achievements.flower.length : 6;
+        const unlockedCount = unlockedAchievements.filter(id => 
+            id.includes(`flower_${flowerId}_`)).length;
+        const progress = Math.round((unlockedCount / totalAchievements) * 100);
+        
         const modalBody = document.getElementById('modalBody');
         modalBody.innerHTML = `
-            <h3>🏆 ${flower.name} 的成就</h3>
+            <div class="achievement-modal-header">
+                <h3>🏆 ${flower.name} 的成就</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
             <div class="flower-achievement-display">
                 <div class="flower-icon-large">${this.getFlowerIcon(flower.score)}</div>
-                <div class="flower-score-large">${flower.score} 分</div>
+                <div class="flower-info">
+                    <div class="flower-score-large">${flower.score} 分</div>
+                    <div class="achievement-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="progress-text">${unlockedCount}/${totalAchievements} 成就已解锁 (${progress}%)</div>
+                    </div>
+                </div>
             </div>
             <div class="achievements-list">
-                ${this.getFlowerAchievementsList(flower, flowerAchievements)}
+                ${this.getFlowerAchievementsList(flower, unlockedAchievements)}
             </div>
         `;
         document.getElementById('modal').style.display = 'block';
     }
+    
+    // 查看班级成就
+    showClassAchievements() {
+        if (!this.currentRankingClass) {
+            alert('请先选择一个班级');
+            return;
+        }
+        
+        const unlockedAchievements = JSON.parse(localStorage.getItem('achievements') || '[]');
+        const classAchievements = unlockedAchievements.filter(id => 
+            id.includes(`class_${this.currentRankingClass}_`));
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="achievement-modal-header">
+                <h3>🏆 班级荣誉成就</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div class="class-achievement-display">
+                <div class="class-icon">🏫</div>
+                <div class="class-info">
+                    <div class="class-name">当前班级</div>
+                    <div class="achievement-count">${classAchievements.length} 项荣誉</div>
+                </div>
+            </div>
+            <div class="class-achievements-list">
+                ${this.getClassAchievementsList(classAchievements)}
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    getClassAchievementsList(unlockedAchievements) {
+        if (this.achievementSystem) {
+            // 获取当前班级统计数据
+            const stats = {
+                totalFlowers: this.allFlowers.length,
+                totalGardens: this.allGardens.length,
+                totalScore: [...this.allFlowers, ...this.allGardens].reduce((sum, item) => sum + item.score, 0),
+                avgScore: (this.allFlowers.length + this.allGardens.length) > 0 ? 
+                    [...this.allFlowers, ...this.allGardens].reduce((sum, item) => sum + item.score, 0) / (this.allFlowers.length + this.allGardens.length) : 0,
+                highScoreCount: [...this.allFlowers, ...this.allGardens].filter(item => item.score >= 20).length
+            };
+            
+            return this.achievementSystem.getAchievementsList('class', this.currentRankingClass, stats);
+        }
+        
+        return '<p>成就系统未加载</p>';
+    }
 
     getFlowerAchievementsList(flower, unlockedAchievements) {
-        const allAchievements = [
-            { id: `flower_${flower.id}_first_score`, name: `${flower.name}的第一分`, icon: '🌱', unlocked: flower.score >= 1 },
-            { id: `flower_${flower.id}_score_5`, name: `${flower.name}达到5分`, icon: '🌻', unlocked: flower.score >= 5 },
-            { id: `flower_${flower.id}_score_10`, name: `${flower.name}达到10分`, icon: '🌼', unlocked: flower.score >= 10 },
-            { id: `flower_${flower.id}_score_15`, name: `${flower.name}达到15分`, icon: '🌸', unlocked: flower.score >= 15 },
-            { id: `flower_${flower.id}_score_20`, name: `${flower.name}达到20分`, icon: '🌺', unlocked: flower.score >= 20 },
-            { id: `flower_${flower.id}_blooming`, name: `${flower.name}盛开了！`, icon: '🌹', unlocked: flower.score >= 25 }
+        if (this.achievementSystem) {
+            return this.achievementSystem.getAchievementsList('flower', flower.id, flower);
+        }
+        
+        // 备用简单版本
+        const basicAchievements = [
+            { name: `${flower.name}的第一分`, icon: '🌱', unlocked: flower.score >= 1 },
+            { name: `${flower.name}达到5分`, icon: '🌻', unlocked: flower.score >= 5 },
+            { name: `${flower.name}达到10分`, icon: '🌼', unlocked: flower.score >= 10 },
+            { name: `${flower.name}达到15分`, icon: '🌸', unlocked: flower.score >= 15 },
+            { name: `${flower.name}达到20分`, icon: '🌺', unlocked: flower.score >= 20 },
+            { name: `${flower.name}盛开了！`, icon: '🌹', unlocked: flower.score >= 25 }
         ];
         
-        return allAchievements.map(achievement => `
+        return basicAchievements.map(achievement => `
             <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
                 <div class="achievement-icon-small">${achievement.unlocked ? achievement.icon : '🔒'}</div>
                 <div class="achievement-name-small">${achievement.name}</div>
