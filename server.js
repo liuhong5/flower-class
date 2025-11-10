@@ -42,24 +42,195 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// 注册接口
+// 验证码存储（生产环境应使用Redis）
+const verificationCodes = new Map();
+
+// 发送注册验证码接口
+app.post('/api/send-verification-code', async (req, res) => {
+  const { phoneNumber } = req.body;
+  
+  if (!phoneNumber || !/^1[3-9]\d{9}$/.test(phoneNumber)) {
+    return res.status(400).json({ error: '请输入正确的手机号码' });
+  }
+  
+  try {
+    // 检查手机号是否已注册
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('phone_number')
+      .eq('phone_number', phoneNumber)
+      .maybeSingle();
+    
+    if (existingUser) {
+      return res.status(400).json({ error: '该手机号码已被注册' });
+    }
+    
+    // 生成验证码
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 存储验证码（5分钟有效）
+    verificationCodes.set(phoneNumber, {
+      code,
+      timestamp: Date.now(),
+      attempts: 0
+    });
+    
+    // 清理过期验证码
+    setTimeout(() => {
+      verificationCodes.delete(phoneNumber);
+    }, 5 * 60 * 1000);
+    
+    // 模拟发送短信（实际应集成短信服务）
+    console.log(`发送验证码到 ${phoneNumber}: ${code}`);
+    
+    res.json({ message: '验证码已发送' });
+  } catch (error) {
+    console.error('发送验证码失败:', error);
+    res.status(500).json({ error: '发送验证码失败' });
+  }
+});
+
+// 发送重置密码验证码接口
+app.post('/api/send-reset-code', async (req, res) => {
+  const { phoneNumber } = req.body;
+  
+  if (!phoneNumber || !/^1[3-9]\d{9}$/.test(phoneNumber)) {
+    return res.status(400).json({ error: '请输入正确的手机号码' });
+  }
+  
+  try {
+    // 检查手机号是否已注册
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('phone_number')
+      .eq('phone_number', phoneNumber)
+      .maybeSingle();
+    
+    if (!existingUser) {
+      return res.status(400).json({ error: '该手机号码未注册' });
+    }
+    
+    // 生成验证码
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 存储验证码（5分钟有效）
+    verificationCodes.set(phoneNumber, {
+      code,
+      timestamp: Date.now(),
+      attempts: 0,
+      type: 'reset'
+    });
+    
+    // 清理过期验证码
+    setTimeout(() => {
+      verificationCodes.delete(phoneNumber);
+    }, 5 * 60 * 1000);
+    
+    console.log(`发送重置密码验证码到 ${phoneNumber}: ${code}`);
+    
+    res.json({ message: '验证码已发送' });
+  } catch (error) {
+    console.error('发送重置验证码失败:', error);
+    res.status(500).json({ error: '发送验证码失败' });
+  }
+});
+
+// 重置密码接口
+app.post('/api/reset-password', async (req, res) => {
+  const { phoneNumber, verificationCode, newPassword } = req.body;
+  
+  if (!phoneNumber || !/^1[3-9]\d{9}$/.test(phoneNumber)) {
+    return res.status(400).json({ error: '请输入正确的手机号码' });
+  }
+  
+  if (!verificationCode || verificationCode.length !== 6) {
+    return res.status(400).json({ error: '请输入正确的验证码' });
+  }
+  
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: '密码长度至少6个字符' });
+  }
+  
+  // 验证验证码
+  const storedData = verificationCodes.get(phoneNumber);
+  if (!storedData || storedData.type !== 'reset') {
+    return res.status(400).json({ error: '验证码已过期，请重新发送' });
+  }
+  
+  if (storedData.code !== verificationCode) {
+    storedData.attempts++;
+    if (storedData.attempts >= 3) {
+      verificationCodes.delete(phoneNumber);
+      return res.status(400).json({ error: '验证码错误次数过多，请重新发送' });
+    }
+    return res.status(400).json({ error: '验证码错误' });
+  }
+  
+  try {
+    // 更新密码
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('phone_number', phoneNumber);
+    
+    if (error) throw error;
+    
+    // 清除验证码
+    verificationCodes.delete(phoneNumber);
+    
+    res.json({ message: '密码重置成功' });
+  } catch (error) {
+    console.error('重置密码失败:', error);
+    res.status(500).json({ error: '重置密码失败' });
+  }
+});
+
+// 注册接口（手机验证码）
 app.post('/api/register', async (req, res) => {
-  const { username } = req.body;
+  const { username, phoneNumber, verificationCode } = req.body;
   
   if (!username || username.trim().length < 3) {
     return res.status(400).json({ error: '用户名长度至少3个字符' });
+  }
+  
+  if (!phoneNumber || !/^1[3-9]\d{9}$/.test(phoneNumber)) {
+    return res.status(400).json({ error: '请输入正确的手机号码' });
+  }
+  
+  if (!verificationCode || verificationCode.length !== 6) {
+    return res.status(400).json({ error: '请输入正确的验证码' });
+  }
+  
+  // 验证验证码
+  const storedData = verificationCodes.get(phoneNumber);
+  if (!storedData) {
+    return res.status(400).json({ error: '验证码已过期，请重新发送' });
+  }
+  
+  if (storedData.code !== verificationCode) {
+    storedData.attempts++;
+    if (storedData.attempts >= 3) {
+      verificationCodes.delete(phoneNumber);
+      return res.status(400).json({ error: '验证码错误次数过多，请重新发送' });
+    }
+    return res.status(400).json({ error: '验证码错误' });
   }
   
   try {
     // 检查用户名是否已存在
     const { data: existingUser } = await supabase
       .from('users')
-      .select('username')
-      .eq('username', username.trim())
+      .select('username, phone_number')
+      .or(`username.eq.${username.trim()},phone_number.eq.${phoneNumber}`)
       .maybeSingle();
     
     if (existingUser) {
-      return res.status(400).json({ error: '用户名已存在' });
+      if (existingUser.username === username.trim()) {
+        return res.status(400).json({ error: '用户名已存在' });
+      }
+      if (existingUser.phone_number === phoneNumber) {
+        return res.status(400).json({ error: '该手机号码已被注册' });
+      }
     }
     
     // 创建新用户
@@ -67,6 +238,7 @@ app.post('/api/register', async (req, res) => {
       .from('users')
       .insert([{ 
         username: username.trim(), 
+        phone_number: phoneNumber,
         password: 'user123', // 默认密码
         role: 'user' 
       }])
@@ -76,6 +248,9 @@ app.post('/api/register', async (req, res) => {
       console.error('数据库插入错误:', error);
       throw error;
     }
+    
+    // 清除验证码
+    verificationCodes.delete(phoneNumber);
     
     res.json({ message: '注册成功', username: username.trim() });
   } catch (error) {
@@ -157,10 +332,22 @@ app.post('/api/login', async (req, res) => {
       const token = jwt.sign({ username, role: user.role }, JWT_SECRET);
       res.json({ token, role: user.role, username });
     } else {
-      res.status(401).json({ error: '用户名或密码错误' });
+      // 检查是否是默认管理员账号
+      if (username === 'admin' && password === 'thisweb666') {
+        const token = jwt.sign({ username: 'admin', role: 'editor' }, JWT_SECRET);
+        res.json({ token, role: 'editor', username: 'admin' });
+      } else {
+        res.status(401).json({ error: '用户名或密码错误' });
+      }
     }
   } catch (error) {
-    res.status(500).json({ error: '登录失败' });
+    // 如果数据库查询失败，检查是否是默认管理员账号
+    if (username === 'admin' && password === 'thisweb666') {
+      const token = jwt.sign({ username: 'admin', role: 'editor' }, JWT_SECRET);
+      res.json({ token, role: 'editor', username: 'admin' });
+    } else {
+      res.status(500).json({ error: '登录失败' });
+    }
   }
 });
 
@@ -392,6 +579,54 @@ app.post('/api/gardens/:id/score', authenticateToken, async (req, res) => {
   }
 });
 
+// 周表加分接口
+app.post('/api/gardens/:id/week-score', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'editor') {
+    return res.status(403).json({ error: '权限不足' });
+  }
+  
+  const { id } = req.params;
+  const { points, weekNumber, remark } = req.body;
+  
+  try {
+    // 记录周表加分历史
+    const { error: logError } = await supabase
+      .from('scoring_logs')
+      .insert([{ 
+        garden_id: id, 
+        points: points, 
+        scored_by: req.user.username,
+        week_number: weekNumber,
+        remark: remark || `第${weekNumber}周加分`
+      }]);
+    
+    if (logError) throw logError;
+    
+    // 获取当前分数并更新
+    const { data: currentGarden, error: fetchError } = await supabase
+      .from('gardens')
+      .select('score')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    const { data, error } = await supabase
+      .from('gardens')
+      .update({ score: currentGarden.score + points })
+      .eq('id', id)
+      .select();
+    
+    if (error) throw error;
+    
+    io.emit('gardenScored', data[0]);
+    res.json(data[0]);
+  } catch (error) {
+    console.error('周表加分失败:', error);
+    res.status(500).json({ error: '周表加分失败: ' + error.message });
+  }
+});
+
 // 删除花田
 app.delete('/api/gardens/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'editor') {
@@ -473,7 +708,17 @@ app.get('/api/gardens/:id/scores', async (req, res) => {
       .order('scored_at', { ascending: false });
     
     if (error) throw error;
-    res.json(data || []);
+    
+    // 格式化数据，添加周次信息
+    const formattedData = data.map(record => ({
+      ...record,
+      display_text: record.week_number ? 
+        `第${record.week_number}周: +${record.points}分` : 
+        `+${record.points}分`,
+      type: record.week_number ? 'week' : 'regular'
+    }));
+    
+    res.json(formattedData || []);
   } catch (error) {
     res.status(500).json({ error: '获取加分记录失败' });
   }
@@ -598,6 +843,66 @@ app.get('/api/rankings', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: '获取排行榜失败' });
+  }
+});
+
+// 导出数据接口（按小组分区）
+app.get('/api/export-data', authenticateToken, async (req, res) => {
+  try {
+    // 获取所有班级
+    const { data: classes } = await supabase
+      .from('classes')
+      .select('*')
+      .order('name');
+    
+    const exportData = [];
+    
+    for (const classItem of classes) {
+      // 获取该班级的花田（小组）
+      const { data: gardens } = await supabase
+        .from('gardens')
+        .select('*')
+        .eq('class_id', classItem.id)
+        .order('name');
+      
+      for (const garden of gardens) {
+        // 获取花田的周表加分记录
+        const { data: weekScores } = await supabase
+          .from('scoring_logs')
+          .select('*')
+          .eq('garden_id', garden.id)
+          .not('week_number', 'is', null)
+          .order('week_number');
+        
+        // 按周次整理分数
+        const weeklyScores = {};
+        weekScores.forEach(score => {
+          if (!weeklyScores[score.week_number]) {
+            weeklyScores[score.week_number] = 0;
+          }
+          weeklyScores[score.week_number] += score.points;
+        });
+        
+        // 构建导出行数据
+        const rowData = {
+          '班级': classItem.name,
+          '小组名称': garden.name,
+          '总分': garden.score
+        };
+        
+        // 添加各周分数
+        for (let week = 1; week <= 20; week++) {
+          rowData[`第${week}周`] = weeklyScores[week] || 0;
+        }
+        
+        exportData.push(rowData);
+      }
+    }
+    
+    res.json(exportData);
+  } catch (error) {
+    console.error('导出数据失败:', error);
+    res.status(500).json({ error: '导出数据失败' });
   }
 });
 

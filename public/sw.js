@@ -1,29 +1,94 @@
-// Service Worker for Push Notifications
-const CACHE_NAME = 'garden-cache-v1';
-const urlsToCache = [
+// Enhanced Service Worker for PWA
+const CACHE_NAME = 'garden-v2.1';
+const STATIC_CACHE = 'static-v2.1';
+const DYNAMIC_CACHE = 'dynamic-v2.1';
+const API_CACHE = 'api-v2.1';
+
+const STATIC_FILES = [
     '/',
+    '/index.html',
     '/styles.css',
     '/script.js',
     '/garden-enhancements.js',
     '/push-notifications.js',
-    '/achievements-system.js'
+    '/achievements-system.js',
+    '/help.html',
+    '/manifest.json'
 ];
 
-// Install event
+// Install - Cache static resources
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(urlsToCache))
+        Promise.all([
+            caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_FILES)),
+            self.skipWaiting()
+        ])
     );
 });
 
-// Fetch event
+// Activate - Clean old caches
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        Promise.all([
+            caches.keys().then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        if (!cacheName.includes('v2.1')) {
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            }),
+            self.clients.claim()
+        ])
+    );
+});
+
+// Fetch - Advanced caching strategy
 self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    const url = new URL(request.url);
+
+    // API requests - Network first, cache fallback
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    if (response.ok) {
+                        const responseClone = response.clone();
+                        caches.open(API_CACHE).then(cache => {
+                            cache.put(request, responseClone);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(request))
+        );
+        return;
+    }
+
+    // Static files - Cache first
+    if (STATIC_FILES.includes(url.pathname)) {
+        event.respondWith(
+            caches.match(request)
+                .then(response => response || fetch(request))
+        );
+        return;
+    }
+
+    // Other requests - Network first, dynamic cache
     event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                return response || fetch(event.request);
+        fetch(request)
+            .then(response => {
+                if (response.ok) {
+                    const responseClone = response.clone();
+                    caches.open(DYNAMIC_CACHE).then(cache => {
+                        cache.put(request, responseClone);
+                    });
+                }
+                return response;
             })
+            .catch(() => caches.match(request))
     );
 });
 

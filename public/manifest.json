@@ -6,19 +6,73 @@
     "display": "standalone",
     "background_color": "#667eea",
     "theme_color": "#4CAF50",
-    "orientation": "portrait-primary",
+    "orientation": "any",
+    "scope": "/",
     "icons": [
         {
-            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzRDQUY1MCIvPjx0ZXh0IHg9Ijk2IiB5PSIxMDAiIGZvbnQtc2l6ZT0iODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4y4PC90ZXh0Pjwvc3ZnPg==",
-            "sizes": "192x192",
-            "type": "image/svg+xml"
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIGZpbGw9IiM0Q0FGNTB8IiByeD0iMTIiLz48dGV4dCB4PSIzNiIgeT0iNDUiIGZvbnQtc2l6ZT0iMzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4y4PC90ZXh0Pjwvc3ZnPg==",
+            "sizes": "72x72",
+            "type": "image/svg+xml",
+            "purpose": "any"
         },
         {
-            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzRDQUY1MCIvPjx0ZXh0IHg9IjI1NiIgeT0iMjgwIiBmb250LXNpemU9IjIwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPvCfjLg8L3RleHQ+PC9zdmc+",
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9IiM0Q0FGNTB8IiByeD0iMTYiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4y4PC90ZXh0Pjwvc3ZnPg==",
+            "sizes": "96x96",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiM0Q0FGNTB8IiByeD0iMjAiLz48dGV4dCB4PSI2NCIgeT0iODAiIGZvbnQtc2l6ZT0iNTUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4y4PC90ZXh0Pjwvc3ZnPg==",
+            "sizes": "128x128",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIGZpbGw9IiM0Q0FGNTB8IiByeD0iMzAiLz48dGV4dCB4PSI5NiIgeT0iMTIwIiBmb250LXNpemU9IjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+MuDwvdGV4dD48L3N2Zz4=",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiM0Q0FGNTB8IiByeD0iODAiLz48dGV4dCB4PSIyNTYiIHk9IjMyMCIgZm9udC1zaXplPSIyMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4y4PC90ZXh0Pjwvc3ZnPg==",
             "sizes": "512x512",
-            "type": "image/svg+xml"
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
         }
     ],
     "categories": ["education", "productivity"],
-    "lang": "zh-CN"
+    "lang": "zh-CN",
+    "dir": "ltr",
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "快速浇水",
+            "short_name": "浇水",
+            "description": "快速给花朵浇水",
+            "url": "/?action=water",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9IiMyMTk2RjMiIHJ4PSIxNiIvPjx0ZXh0IHg9IjQ4IiB5PSI2MCIgZm9udC1zaXplPSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPvCfkqc8L3RleHQ+PC9zdmc+",
+                "sizes": "96x96"
+            }]
+        },
+        {
+            "name": "查看排行榜",
+            "short_name": "排行榜",
+            "description": "查看花朵和花田排行榜",
+            "url": "/?tab=rankings",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9IiNGRkM5MDAiIHJ4PSIxNiIvPjx0ZXh0IHg9IjQ4IiB5PSI2MCIgZm9udC1zaXplPSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPvCfj4Y8L3RleHQ+PC9zdmc+",
+                "sizes": "96x96"
+            }]
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjU2OCIgdmlld0JveD0iMCAwIDMyMCA1NjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSI1NjgiIGZpbGw9IiNmNWY1ZjUiLz48cmVjdCB4PSIxMCIgeT0iMTAiIHdpZHRoPSIzMDAiIGhlaWdodD0iNjAiIGZpbGw9IiM0Q0FGNTB8IiByeD0iOCIvPjx0ZXh0IHg9IjE2MCIgeT0iNDUiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7kuJHnq6/oirHlm63nrqHnkIbns7vnu58gPC90ZXh0PjxyZWN0IHg9IjEwIiB5PSI4MCIgd2lkdGg9IjE0NSIgaGVpZ2h0PSIxMDAiIGZpbGw9IndoaXRlIiByeD0iOCIvPjxyZWN0IHg9IjE2NSIgeT0iODAiIHdpZHRoPSIxNDUiIGhlaWdodD0iMTAwIiBmaWxsPSJ3aGl0ZSIgcng9IjgiLz48L3N2Zz4=",
+            "sizes": "320x568",
+            "type": "image/svg+xml",
+            "form_factor": "narrow",
+            "label": "移动端界面"
+        }
+    ]
 }

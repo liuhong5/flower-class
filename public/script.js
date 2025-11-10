@@ -36,6 +36,16 @@ class GardenApp {
             this.pushNotifications = new PushNotificationSystem(this);
         }
         
+        // 初始化性能优化器
+        if (typeof PerformanceOptimizer !== 'undefined') {
+            this.performanceOptimizer = new PerformanceOptimizer();
+        }
+        
+        // 初始化数据分析
+        if (typeof DataAnalytics !== 'undefined') {
+            this.dataAnalytics = new DataAnalytics(this);
+        }
+        
         this.init();
     }
 
@@ -46,6 +56,12 @@ class GardenApp {
         if (this.token) {
             this.showMainInterface();
             this.loadData();
+            // 检查新用户教程
+            setTimeout(() => {
+                if (window.tutorialSystem) {
+                    tutorialSystem.checkNewUser();
+                }
+            }, 1000);
         } else {
             this.showLoginInterface();
         }
@@ -61,6 +77,11 @@ class GardenApp {
         // 注册按钮
         document.getElementById('registerBtn').addEventListener('click', () => {
             this.showRegisterModal();
+        });
+        
+        // 忘记密码按钮
+        document.getElementById('forgotPasswordBtn').addEventListener('click', () => {
+            this.showForgotPasswordModal();
         });
 
         // 退出登录
@@ -161,6 +182,9 @@ class GardenApp {
         
         // 初始化虚拟滚动
         this.initVirtualScroll();
+        
+        // 初始化无障碍功能
+        this.initAccessibility();
     }
 
     setupSocketListeners() {
@@ -1157,11 +1181,67 @@ class GardenApp {
 
     toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        let newTheme;
+        
+        if (currentTheme === 'light') {
+            newTheme = 'dark';
+        } else if (currentTheme === 'dark') {
+            newTheme = 'high-contrast';
+        } else {
+            newTheme = 'light';
+        }
         
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         this.updateThemeIcon(newTheme);
+    }
+    
+    // 无障碍功能初始化
+    initAccessibility() {
+        // 键盘导航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                document.body.classList.add('keyboard-nav');
+            }
+        });
+        
+        document.addEventListener('mousedown', () => {
+            document.body.classList.remove('keyboard-nav');
+        });
+        
+        // 跳转链接
+        if (!document.querySelector('.skip-link')) {
+            const skipLink = document.createElement('a');
+            skipLink.href = '#main-content';
+            skipLink.className = 'skip-link';
+            skipLink.textContent = '跳转到主内容';
+            document.body.insertBefore(skipLink, document.body.firstChild);
+        }
+        
+        // ARIA标签
+        this.addAriaLabels();
+    }
+    
+    // 添加ARIA标签
+    addAriaLabels() {
+        // 为按钮添加描述
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            if (!btn.getAttribute('aria-label')) {
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    const action = icon.className.includes('water') ? '浇水' :
+                                 icon.className.includes('delete') ? '删除' :
+                                 icon.className.includes('edit') ? '编辑' : '操作';
+                    btn.setAttribute('aria-label', action);
+                }
+            }
+        });
+        
+        // 为卡片添加角色
+        document.querySelectorAll('.card').forEach(card => {
+            card.setAttribute('role', 'article');
+            card.setAttribute('tabindex', '0');
+        });
     }
 
     updateThemeIcon(theme) {
@@ -1473,6 +1553,151 @@ class GardenApp {
 
     // 数据导出功能
     async exportData() {
+        this.showExportModal();
+    }
+    
+    // 显示数据分析面板
+    showAnalyticsPanel() {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>📊 数据分析</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div class="analytics-options">
+                <div class="analytics-option" onclick="app.showGrowthAnalysis()">
+                    <h4>📈 成长轨迹</h4>
+                    <p>学生个人成长分析</p>
+                </div>
+                <div class="analytics-option" onclick="app.showActivityHeatmap()">
+                    <h4>🔥 活跃度热力图</h4>
+                    <p>班级活跃度可视化</p>
+                </div>
+                <div class="analytics-option" onclick="app.showCustomReport()">
+                    <h4>📋 自定义报表</h4>
+                    <p>生成个性化报告</p>
+                </div>
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 显示成长分析
+    async showGrowthAnalysis() {
+        if (!this.dataAnalytics) return;
+        
+        const flowers = this.allFlowers;
+        if (flowers.length === 0) {
+            alert('暂无数据可分析');
+            return;
+        }
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>📈 学生成长轨迹分析</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div class="growth-analysis">
+                <select id="studentSelect">
+                    <option value="">选择学生</option>
+                    ${flowers.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+                </select>
+                <div id="growthResults" class="growth-results"></div>
+            </div>
+        `;
+        
+        document.getElementById('studentSelect').addEventListener('change', async (e) => {
+            if (e.target.value) {
+                const analysis = await this.dataAnalytics.analyzeStudentGrowth(e.target.value);
+                this.displayGrowthResults(analysis);
+            }
+        });
+    }
+    
+    // 显示成长分析结果
+    displayGrowthResults(analysis) {
+        if (!analysis) return;
+        
+        const container = document.getElementById('growthResults');
+        container.innerHTML = `
+            <div class="growth-metrics">
+                <div class="metric-card">
+                    <h4>成长率</h4>
+                    <div class="metric-value">${analysis.growthRate}%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>里程碑</h4>
+                    <div class="milestones">
+                        ${analysis.milestones.map(m => `
+                            <div class="milestone">
+                                <span class="milestone-achievement">${m.achievement}</span>
+                                <span class="milestone-date">${new Date(m.date).toLocaleDateString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h4>未来预测</h4>
+                    <div class="predictions">
+                        ${analysis.predictions ? analysis.predictions.map(p => `
+                            <div class="prediction">第${p.day}天: ${p.predicted}分</div>
+                        `).join('') : '暂无预测数据'}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h4>建议</h4>
+                    <div class="recommendations">
+                        ${analysis.recommendations.map(r => `
+                            <div class="recommendation ${r.type}">${r.message}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 显示导出选项模态框
+    showExportModal() {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>📄 数据导出</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <div class="export-options">
+                <div class="export-option" onclick="app.selectExportType('standard')">
+                    <h4>📈 标准导出</h4>
+                    <p>导出花朵、花田、班级数据</p>
+                </div>
+                <div class="export-option" onclick="app.selectExportType('weekly')">
+                    <h4>📅 周表导出</h4>
+                    <p>按小组分区，各周分数列表</p>
+                </div>
+            </div>
+        `;
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 选择导出类型
+    selectExportType(type) {
+        document.querySelectorAll('.export-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        event.target.closest('.export-option').classList.add('selected');
+        
+        setTimeout(() => {
+            if (type === 'standard') {
+                this.exportStandardData();
+            } else if (type === 'weekly') {
+                this.exportWeeklyData();
+            }
+            this.closeModal();
+        }, 300);
+    }
+    
+    // 标准数据导出
+    async exportStandardData() {
         // 等待XLSX库加载
         let retries = 0;
         while (typeof XLSX === 'undefined' && retries < 10) {
@@ -1530,6 +1755,85 @@ class GardenApp {
             this.showNotification('数据导出成功');
         } catch (error) {
             console.error('导出错误:', error);
+            alert('导出失败: ' + error.message);
+        }
+    }
+    
+    // 周表数据导出（按小组分区）
+    async exportWeeklyData() {
+        // 等待XLSX库加载
+        let retries = 0;
+        while (typeof XLSX === 'undefined' && retries < 10) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retries++;
+        }
+        
+        if (typeof XLSX === 'undefined') {
+            alert('导出功能加载失败，请刷新页面重试');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/export-data', {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('获取导出数据失败');
+            }
+            
+            const exportData = await response.json();
+            
+            if (exportData.length === 0) {
+                alert('暂无数据可导出');
+                return;
+            }
+            
+            const wb = XLSX.utils.book_new();
+            
+            // 创建工作表
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            
+            // 设置列宽
+            const colWidths = [
+                { wch: 15 }, // 班级
+                { wch: 20 }, // 小组名称
+                { wch: 10 }, // 总分
+            ];
+            
+            // 为各周设置列宽
+            for (let i = 1; i <= 20; i++) {
+                colWidths.push({ wch: 8 }); // 各周列宽
+            }
+            
+            ws['!cols'] = colWidths;
+            
+            // 设置表头样式
+            const headerStyle = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4CAF50" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+            
+            // 应用表头样式
+            const headers = Object.keys(exportData[0]);
+            headers.forEach((header, index) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
+                if (!ws[cellAddress]) ws[cellAddress] = {};
+                ws[cellAddress].s = headerStyle;
+            });
+            
+            XLSX.utils.book_append_sheet(wb, ws, '小组周表分数');
+            
+            // 生成文件名
+            const fileName = `小组周表分数_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showNotification('周表数据导出成功');
+        } catch (error) {
+            console.error('导出周表数据错误:', error);
             alert('导出失败: ' + error.message);
         }
     }
@@ -2395,20 +2699,179 @@ class GardenApp {
         const modalBody = document.getElementById('modalBody');
         modalBody.innerHTML = `
             <div class="modal-header">
-                <h3>注册新用户</h3>
+                <h3>📱 手机注册</h3>
                 <button class="modal-close-btn" onclick="app.closeModal()">×</button>
             </div>
             <p class="register-info">注册后将成为普通用户，初始密码为 <strong>user123</strong></p>
             <form class="modal-form" onsubmit="app.registerUser(event)">
                 <input type="text" id="newUsername" placeholder="请输入用户名" required minlength="3" maxlength="20">
                 <div class="form-note">用户名长度3-20个字符</div>
+                
+                <div class="phone-input-group">
+                    <input type="tel" id="phoneNumber" class="phone-input" placeholder="请输入手机号码" required pattern="^1[3-9]\\d{9}$">
+                    <div class="phone-validation-msg" id="phoneValidationMsg">请输入正确的手机号码</div>
+                </div>
+                
+                <div class="verification-group">
+                    <input type="text" id="verificationCode" class="verification-input" placeholder="请输入验证码" required maxlength="6">
+                    <button type="button" id="sendCodeBtn" class="send-code-btn" onclick="app.sendVerificationCode()">发送验证码</button>
+                </div>
+                <div class="form-note">验证码将发送到您的手机，有效期5分钟</div>
+                
                 <div class="modal-buttons">
-                    <button type="submit" class="primary-btn">注册用户</button>
+                    <button type="submit" class="primary-btn" id="registerSubmitBtn" disabled>注册用户</button>
                     <button type="button" class="secondary-btn" onclick="app.closeModal()">取消</button>
                 </div>
             </form>
         `;
+        
+        // 初始化手机号验证
+        this.initPhoneValidation();
         document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 显示忘记密码模态框
+    showForgotPasswordModal() {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>📱 手机重置密码</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <form class="modal-form" onsubmit="app.resetPassword(event)">
+                <div class="phone-input-group">
+                    <input type="tel" id="resetPhoneNumber" class="phone-input" placeholder="请输入注册时的手机号码" required pattern="^1[3-9]\\d{9}$">
+                    <div class="phone-validation-msg" id="resetPhoneValidationMsg">请输入正确的手机号码</div>
+                </div>
+                
+                <div class="verification-group">
+                    <input type="text" id="resetVerificationCode" class="verification-input" placeholder="请输入验证码" required maxlength="6">
+                    <button type="button" id="resetSendCodeBtn" class="send-code-btn" onclick="app.sendResetCode()">发送验证码</button>
+                </div>
+                
+                <input type="password" id="newPasswordReset" placeholder="请输入新密码" required minlength="6">
+                <input type="password" id="confirmPasswordReset" placeholder="再次输入新密码" required minlength="6">
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="primary-btn" id="resetSubmitBtn" disabled>重置密码</button>
+                    <button type="button" class="secondary-btn" onclick="app.closeModal()">取消</button>
+                </div>
+            </form>
+        `;
+        
+        this.initResetValidation();
+        document.getElementById('modal').style.display = 'block';
+    }
+    
+    // 初始化重置密码验证
+    initResetValidation() {
+        const phoneInput = document.getElementById('resetPhoneNumber');
+        const codeInput = document.getElementById('resetVerificationCode');
+        const newPwdInput = document.getElementById('newPasswordReset');
+        const confirmPwdInput = document.getElementById('confirmPasswordReset');
+        
+        [phoneInput, codeInput, newPwdInput, confirmPwdInput].forEach(input => {
+            input.addEventListener('input', () => this.checkResetFormValid());
+        });
+        
+        phoneInput.addEventListener('input', () => this.validateResetPhone());
+    }
+    
+    // 验证重置手机号
+    validateResetPhone() {
+        const phoneInput = document.getElementById('resetPhoneNumber');
+        const validationMsg = document.getElementById('resetPhoneValidationMsg');
+        const sendBtn = document.getElementById('resetSendCodeBtn');
+        
+        const phone = phoneInput.value.trim();
+        const phoneRegex = /^1[3-9]\d{9}$/;
+        
+        if (phone && !phoneRegex.test(phone)) {
+            validationMsg.classList.add('show');
+            sendBtn.disabled = true;
+            return false;
+        } else {
+            validationMsg.classList.remove('show');
+            sendBtn.disabled = !phone;
+            return !!phone;
+        }
+    }
+    
+    // 发送重置验证码
+    async sendResetCode() {
+        if (!this.validateResetPhone()) return;
+        
+        const phoneNumber = document.getElementById('resetPhoneNumber').value.trim();
+        const sendBtn = document.getElementById('resetSendCodeBtn');
+        
+        try {
+            const response = await fetch('/api/send-reset-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showNotification('验证码已发送');
+                this.startCountdown(sendBtn);
+            } else {
+                alert(data.error || '发送验证码失败');
+            }
+        } catch (error) {
+            alert('发送验证码失败，请检查网络连接');
+        }
+    }
+    
+    // 检查重置表单有效性
+    checkResetFormValid() {
+        const phone = document.getElementById('resetPhoneNumber').value.trim();
+        const code = document.getElementById('resetVerificationCode').value.trim();
+        const newPwd = document.getElementById('newPasswordReset').value;
+        const confirmPwd = document.getElementById('confirmPasswordReset').value;
+        const submitBtn = document.getElementById('resetSubmitBtn');
+        
+        const isValid = /^1[3-9]\d{9}$/.test(phone) && 
+                       code.length === 6 && 
+                       newPwd.length >= 6 && 
+                       newPwd === confirmPwd;
+        
+        submitBtn.disabled = !isValid;
+    }
+    
+    // 重置密码
+    async resetPassword(event) {
+        event.preventDefault();
+        
+        const phoneNumber = document.getElementById('resetPhoneNumber').value.trim();
+        const verificationCode = document.getElementById('resetVerificationCode').value.trim();
+        const newPassword = document.getElementById('newPasswordReset').value;
+        const confirmPassword = document.getElementById('confirmPasswordReset').value;
+        
+        if (newPassword !== confirmPassword) {
+            alert('两次输入的密码不一致');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber, verificationCode, newPassword })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.closeModal();
+                alert('密码重置成功！请使用新密码登录。');
+            } else {
+                alert(data.error || '重置密码失败');
+            }
+        } catch (error) {
+            alert('重置密码失败，请检查网络连接');
+        }
     }
     
     // 显示修改密码模态框
@@ -2469,14 +2932,121 @@ class GardenApp {
         }
     }
 
+    // 初始化手机号验证
+    initPhoneValidation() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const verificationInput = document.getElementById('verificationCode');
+        const submitBtn = document.getElementById('registerSubmitBtn');
+        
+        phoneInput.addEventListener('input', () => {
+            this.validatePhoneNumber();
+        });
+        
+        verificationInput.addEventListener('input', () => {
+            this.checkFormValid();
+        });
+    }
+    
+    // 验证手机号码
+    validatePhoneNumber() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const validationMsg = document.getElementById('phoneValidationMsg');
+        const sendBtn = document.getElementById('sendCodeBtn');
+        
+        const phone = phoneInput.value.trim();
+        const phoneRegex = /^1[3-9]\d{9}$/;
+        
+        if (phone && !phoneRegex.test(phone)) {
+            validationMsg.classList.add('show');
+            sendBtn.disabled = true;
+            return false;
+        } else {
+            validationMsg.classList.remove('show');
+            sendBtn.disabled = !phone;
+            return !!phone;
+        }
+    }
+    
+    // 发送验证码
+    async sendVerificationCode() {
+        if (!this.validatePhoneNumber()) return;
+        
+        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+        const sendBtn = document.getElementById('sendCodeBtn');
+        
+        try {
+            const response = await fetch('/api/send-verification-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phoneNumber })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showNotification('验证码已发送，请注意查收');
+                this.startCountdown(sendBtn);
+            } else {
+                alert(data.error || '发送验证码失败');
+            }
+        } catch (error) {
+            alert('发送验证码失败，请检查网络连接');
+        }
+    }
+    
+    // 倒计时
+    startCountdown(button) {
+        let countdown = 60;
+        button.disabled = true;
+        
+        const timer = setInterval(() => {
+            button.innerHTML = `${countdown}秒后重发`;
+            countdown--;
+            
+            if (countdown < 0) {
+                clearInterval(timer);
+                button.disabled = false;
+                button.innerHTML = '发送验证码';
+            }
+        }, 1000);
+    }
+    
+    // 检查表单有效性
+    checkFormValid() {
+        const username = document.getElementById('newUsername').value.trim();
+        const phone = document.getElementById('phoneNumber').value.trim();
+        const code = document.getElementById('verificationCode').value.trim();
+        const submitBtn = document.getElementById('registerSubmitBtn');
+        
+        const isValid = username.length >= 3 && 
+                       /^1[3-9]\d{9}$/.test(phone) && 
+                       code.length === 6;
+        
+        submitBtn.disabled = !isValid;
+    }
+    
     // 注册用户
     async registerUser(event) {
         event.preventDefault();
         
         const username = document.getElementById('newUsername').value.trim();
+        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+        const verificationCode = document.getElementById('verificationCode').value.trim();
         
         if (username.length < 3 || username.length > 20) {
             alert('用户名长度必须在3-20个字符之间');
+            return;
+        }
+        
+        if (!/^1[3-9]\d{9}$/.test(phoneNumber)) {
+            alert('请输入正确的手机号码');
+            return;
+        }
+        
+        if (verificationCode.length !== 6) {
+            alert('请输入正确的验证码');
             return;
         }
         
@@ -2486,7 +3056,7 @@ class GardenApp {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username })
+                body: JSON.stringify({ username, phoneNumber, verificationCode })
             });
 
             const data = await response.json();
@@ -2782,12 +3352,16 @@ class GardenApp {
         
         const modalBody = document.getElementById('modalBody');
         modalBody.innerHTML = `
-            <h3>周表加分</h3>
+            <div class="modal-header">
+                <h3>📅 周表加分</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <p class="week-info">选择要加分的周次，每个花田可以按周次单独记录分数</p>
             <div class="week-selector">
                 ${weeks.map(week => `
                     <button class="week-btn" onclick="app.selectWeek(${gardenId}, ${week.number})">
-                        第${week.number}周<br>
-                        <small>${week.start}</small>
+                        <div class="week-number">第${week.number}周</div>
+                        <div class="week-date">${week.start}</div>
                     </button>
                 `).join('')}
             </div>
@@ -2796,26 +3370,51 @@ class GardenApp {
     }
 
     async selectWeek(gardenId, weekNumber) {
-        const points = prompt(`给第${weekNumber}周加多少分？`);
-        if (points && !isNaN(points)) {
-            try {
-                const response = await fetch(`/api/gardens/${gardenId}/score`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.token}`
-                    },
-                    body: JSON.stringify({ points: parseInt(points) })
-                });
-                
-                if (response.ok) {
-                    this.closeModal();
-                    this.showNotification(`第${weekNumber}周加分成功`);
-                    this.loadData();
-                }
-            } catch (error) {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-header">
+                <h3>📅 第${weekNumber}周加分</h3>
+                <button class="modal-close-btn" onclick="app.closeModal()">×</button>
+            </div>
+            <form class="modal-form" onsubmit="app.addWeekScore(event, ${gardenId}, ${weekNumber})">
+                <input type="number" id="weekPoints" placeholder="输入加分数量" min="1" required>
+                <textarea id="weekRemark" placeholder="备注（可选）" rows="3"></textarea>
+                <div class="modal-buttons">
+                    <button type="submit" class="primary-btn">确认加分</button>
+                    <button type="button" class="secondary-btn" onclick="app.showWeekScoreModal(${gardenId})">返回</button>
+                </div>
+            </form>
+        `;
+    }
+    
+    async addWeekScore(event, gardenId, weekNumber) {
+        event.preventDefault();
+        const points = parseInt(document.getElementById('weekPoints').value);
+        const remark = document.getElementById('weekRemark').value;
+        
+        try {
+            const response = await fetch(`/api/gardens/${gardenId}/week-score`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ 
+                    points, 
+                    weekNumber, 
+                    remark: remark || `第${weekNumber}周加分` 
+                })
+            });
+            
+            if (response.ok) {
+                this.closeModal();
+                this.showNotification(`第${weekNumber}周加分成功：+${points}分`);
+                this.loadData();
+            } else {
                 alert('加分失败');
             }
+        } catch (error) {
+            alert('加分失败，请检查网络连接');
         }
     }
 
